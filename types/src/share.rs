@@ -20,7 +20,7 @@ pub struct NamespacedShares {
 #[serde(try_from = "RawRow", into = "RawRow")]
 pub struct NamespacedRow {
     pub shares: Vec<Share>,
-    pub proof: Option<NamespaceProof>,
+    pub proof: NamespaceProof,
 }
 
 // NOTE:
@@ -69,7 +69,11 @@ impl TryFrom<RawRow> for NamespacedRow {
             .map(Share::new)
             .collect::<Result<Vec<_>>>()?;
 
-        let proof = value.proof.map(TryInto::try_into).transpose()?;
+        let proof = value
+            .proof
+            .map(TryInto::try_into)
+            .transpose()?
+            .ok_or(Error::MissingProof)?;
 
         Ok(NamespacedRow { shares, proof })
     }
@@ -79,7 +83,7 @@ impl From<NamespacedRow> for RawRow {
     fn from(value: NamespacedRow) -> RawRow {
         RawRow {
             shares: value.shares.iter().map(|share| share.to_vec()).collect(),
-            proof: value.proof.map(Into::into),
+            proof: Some(value.proof.into()),
         }
     }
 }
@@ -157,17 +161,28 @@ mod tests {
 
     #[test]
     fn decode_namespaced_shares() {
-        let get_shares_by_namespace_response = r#"[{
-            "Shares":[
-                "AAAAAAAAAAAAAAAAAAAAAAAAAE3BWIMKXpgB8QMBAAAEAP////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8="
+        let get_shares_by_namespace_response = r#"[
+          {
+            "Shares": [
+              "AAAAAAAAAAAAAAAAAAAAAAAAAAAADCBNOWAP3dMBAAAAG/HyDKgAfpEKO/iy5h2g8mvKB+94cXpupUFl9QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
             ],
-            "Proof":{}
-        }]"#;
+            "Proof": {
+              "start": 1,
+              "end": 2,
+              "nodes": [
+                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABFmTiyJVvgoyHdw7JGii/wyMfMbSdN3Nbi6Uj0Lcprk+",
+                "/////////////////////////////////////////////////////////////////////////////0WE8jz9lbFjpXWj9v7/QgdAxYEqy4ew9TMdqil/UFZm"
+              ],
+              "leaf_hash": null,
+              "is_max_namespace_id_ignored": true
+            }
+          }
+        ]"#;
 
         let ns_shares: NamespacedShares =
             serde_json::from_str(get_shares_by_namespace_response).unwrap();
 
         assert_eq!(ns_shares.rows[0].shares.len(), 1);
-        assert!(ns_shares.rows[0].proof.is_none());
+        assert!(!ns_shares.rows[0].proof.is_of_absence());
     }
 }
