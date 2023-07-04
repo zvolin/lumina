@@ -63,6 +63,7 @@ impl TryFrom<RawRow> for NamespacedRow {
     type Error = Error;
 
     fn try_from(value: RawRow) -> Result<Self, Self::Error> {
+        println!("Res: {}", serde_json::to_string_pretty(&value).unwrap());
         let shares = value
             .shares
             .into_iter()

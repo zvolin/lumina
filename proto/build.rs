@@ -28,6 +28,10 @@ pub static CUSTOM_FIELD_ATTRIBUTES: &[(&str, &str)] = &[
     (".share.p2p.shrex.nd.Proof.nodes", VEC_BASE64STRING),
     (".share.p2p.shrex.nd.Proof.hashleaf", DEFAULT),
     (".share.p2p.shrex.nd.Proof.hashleaf", BASE64STRING),
+    (
+        ".share.p2p.shrex.nd.Proof.hashleaf",
+        r#"#[serde(rename = "leaf_hash")]"#,
+    ),
     (".share.p2p.shrex.nd.Row.shares", VEC_BASE64STRING),
 ];
 

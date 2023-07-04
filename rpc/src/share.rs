@@ -8,5 +8,5 @@ pub trait Share {
         &self,
         root: &DataAvailabilityHeader,
         namespace: Namespace,
-    ) -> Result<NamespacedShares, Error>;
+    ) -> Result<Option<NamespacedShares>, Error>;
 }

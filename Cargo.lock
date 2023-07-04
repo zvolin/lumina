@@ -151,6 +151,7 @@ dependencies = [
  "http",
  "jsonrpsee",
  "rand",
+ "serde_json",
  "tendermint-proto",
  "thiserror",
  "tokio",

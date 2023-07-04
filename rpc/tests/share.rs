@@ -26,6 +26,7 @@ async fn test_get_shares_by_namespace(client: &HttpClient) {
     let ns_shares = client
         .share_get_shares_by_namespace(&dah, namespace)
         .await
+        .unwrap()
         .unwrap();
 
     let seq_len =
@@ -63,10 +64,33 @@ async fn test_get_shares_by_namespace_wrong_ns(client: &HttpClient) {
         .unwrap()
         .dah;
 
-    client
-        .share_get_shares_by_namespace(&dah, random_ns())
-        .await
-        .unwrap_err();
+    println!("height: {submitted_height}");
+    println!("dah: {}", serde_json::to_string_pretty(&dah).unwrap());
+
+    for _ in 0..10 {
+        let random_ns = random_ns();
+        println!("ns: {}", serde_json::to_string_pretty(&random_ns).unwrap());
+
+        let ns_shares = client
+            .share_get_shares_by_namespace(&dah, random_ns)
+            .await
+            .unwrap();
+
+        if ns_shares.is_none() {
+            println!("Is none");
+            continue;
+        }
+
+        assert!(ns_shares
+            .unwrap()
+            .rows
+            .iter()
+            .all(|row| row.proof.is_of_absence()));
+        println!("Is of absence");
+        continue;
+    }
+
+    panic!()
 }
 
 async fn test_get_shares_by_namespace_wrong_roots(client: &HttpClient) {
