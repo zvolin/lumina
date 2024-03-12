@@ -118,7 +118,7 @@ where
         // spawn the task that will stop the services when the fraud is detected
         let network_compromised_token = p2p.get_network_compromised_token().await?;
         let tasks_cancellation_token = CancellationToken::new();
-        spawn({
+        spawn!({
             let syncer = syncer.clone();
             let daser = daser.clone();
             let tasks_cancellation_token = tasks_cancellation_token.child_token();

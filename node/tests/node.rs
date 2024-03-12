@@ -244,7 +244,7 @@ fn spawn_befp_announcer(connect_to: Multiaddr) -> mpsc::Sender<BadEncodingFraudP
     // a channel for proof announcment
     let (tx, mut rx) = mpsc::channel::<BadEncodingFraudProof>(8);
 
-    spawn(async move {
+    spawn!(async move {
         loop {
             select! {
                 _ = announcer.select_next_some() => (),

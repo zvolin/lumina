@@ -12,7 +12,7 @@ pub(crate) struct Executor;
 
 impl swarm::Executor for Executor {
     fn exec(&self, future: Pin<Box<dyn Future<Output = ()> + Send>>) {
-        spawn(future)
+        spawn!(future)
     }
 }
 
@@ -24,7 +24,7 @@ pub(crate) fn spawn_cancellable<F>(cancelation_token: CancellationToken, future:
 where
     F: Future<Output = ()> + Send + 'static,
 {
-    spawn(async move {
+    spawn!(async move {
         select! {
             _ = cancelation_token.cancelled() => {}
             _ = future => {}
@@ -40,12 +40,13 @@ mod imp {
     pub(crate) use tokio::time::error::Elapsed;
     pub(crate) use tokio::time::{sleep, timeout};
 
-    pub(crate) fn spawn<F>(future: F)
-    where
-        F: Future<Output = ()> + Send + 'static,
-    {
-        tokio::spawn(future);
+    macro_rules! spawn {
+        ($fut:expr) => {{
+            tokio::spawn($fut);
+        }};
     }
+
+    pub(crate) use spawn;
 
     pub(crate) struct Interval(tokio::time::Interval);
 

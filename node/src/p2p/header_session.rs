@@ -1,7 +1,7 @@
 use celestia_proto::p2p::pb::HeaderRequest;
 use celestia_types::ExtendedHeader;
 use tokio::sync::{mpsc, oneshot};
-use tracing::debug;
+use tracing::{debug, instrument};
 
 use crate::executor::spawn;
 use crate::p2p::header_ex::utils::HeaderRequestExt;
@@ -107,6 +107,7 @@ impl HeaderSession {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     pub(crate) async fn send_request(&mut self, height: u64, amount: u64) -> Result<()> {
         debug!("Fetching batch {} until {}", height, height + amount - 1);
 
@@ -123,7 +124,7 @@ impl HeaderSession {
 
         let response_tx = self.response_tx.clone();
 
-        spawn(async move {
+        spawn!(async move {
             let result = match rx.await {
                 Ok(result) => result,
                 Err(_) => Err(P2pError::WorkerDied),
@@ -152,7 +153,7 @@ mod tests {
 
         let mut session = HeaderSession::new(1, 64, p2p_mock.cmd_tx.clone()).unwrap();
         let (result_tx, result_rx) = oneshot::channel();
-        spawn(async move {
+        spawn!(async move {
             let res = session.run().await;
             result_tx.send(res).unwrap();
         });
@@ -181,7 +182,7 @@ mod tests {
 
         let mut session = HeaderSession::new(1, 520, p2p_mock.cmd_tx.clone()).unwrap();
         let (result_tx, result_rx) = oneshot::channel();
-        spawn(async move {
+        spawn!(async move {
             let res = session.run().await;
             result_tx.send(res).unwrap();
         });
@@ -217,7 +218,7 @@ mod tests {
 
         let mut session = HeaderSession::new(1, 64, p2p_mock.cmd_tx.clone()).unwrap();
         let (result_tx, result_rx) = oneshot::channel();
-        spawn(async move {
+        spawn!(async move {
             let res = session.run().await;
             result_tx.send(res).unwrap();
         });
@@ -246,7 +247,7 @@ mod tests {
 
         let mut session = HeaderSession::new(1, 64, p2p_mock.cmd_tx.clone()).unwrap();
         let (result_tx, result_rx) = oneshot::channel();
-        spawn(async move {
+        spawn!(async move {
             let res = session.run().await;
             result_tx.send(res).unwrap();
         });

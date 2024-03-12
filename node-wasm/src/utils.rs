@@ -35,7 +35,7 @@ pub fn setup_logging() {
         .with_ansi(true) // Only partially supported across browsers, but we target only chrome now
         .with_timer(UtcTime::rfc_3339()) // std::time is not available in browsers
         .with_writer(MakeConsoleWriter) // write events to the console
-        .with_filter(LevelFilter::INFO); // TODO: allow customizing the log level
+        .with_filter(LevelFilter::DEBUG); // TODO: allow customizing the log level
     let perf_layer = performance_layer().with_details_from_fields(Pretty::default());
 
     tracing_subscriber::registry()

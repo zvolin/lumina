@@ -67,7 +67,7 @@ impl Daser {
         let cancellation_token = CancellationToken::new();
         let mut worker = Worker::new(args, cancellation_token.child_token())?;
 
-        spawn(async move {
+        spawn!(async move {
             if let Err(e) = worker.run().await {
                 error!("Fatal DASer error: {e}");
             }

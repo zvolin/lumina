@@ -142,7 +142,7 @@ where
         // Choose the best HEAD.
         //
         // Algorithm: https://github.com/celestiaorg/go-header/blob/e50090545cc7e049d2f965d2b5c773eaa4a2c0b2/p2p/exchange.go#L357-L381
-        spawn(async move {
+        spawn!(async move {
             let mut resps: Vec<_> = join_all(rxs)
                 .await
                 .into_iter()
@@ -199,7 +199,7 @@ where
             state.request.amount
         );
 
-        spawn(async move {
+        spawn!(async move {
             match decode_and_verify_responses(&state.request, &responses).await {
                 Ok(headers) => {
                     // TODO: Increase peer score

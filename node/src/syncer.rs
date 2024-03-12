@@ -114,7 +114,7 @@ where
         let (cmd_tx, cmd_rx) = mpsc::channel(16);
         let mut worker = Worker::new(args, cancellation_token.child_token(), cmd_rx)?;
 
-        spawn(async move {
+        spawn!(async move {
             worker.run().await;
         });
 

@@ -32,6 +32,7 @@ lumina-node = { workspace = true }
 anyhow = "1.0.71"
 axum = "0.6.20"
 clap = { version = "4.4.4", features = ["derive"] }
+console-subscriber = "0.2"
 directories = "5.0.1"
 dotenvy = "0.15.7"
 mime_guess = "2.0"

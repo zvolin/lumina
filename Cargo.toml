@@ -24,3 +24,6 @@ blockstore = { path = "blockstore" }
 #celestia-tendermint = { path = "../celestia-tendermint-rs/tendermint" }
 #celestia-tendermint-proto = { path = "../celestia-tendermint-rs/proto" }
 #nmt-rs = { path = "../nmt-rs" }
+
+[patch."https://github.com/eigerco/beetswap"]
+beetswap = { path = "../beetswap" }

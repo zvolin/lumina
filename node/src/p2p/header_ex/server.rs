@@ -112,7 +112,7 @@ where
         let store = self.store.clone();
         let tx = self.tx.clone();
 
-        spawn(async move {
+        spawn!(async move {
             let response = store
                 .get_head()
                 .await
@@ -132,7 +132,7 @@ where
         let store = self.store.clone();
         let tx = self.tx.clone();
 
-        spawn(async move {
+        spawn!(async move {
             let response = store
                 .get_by_hash(&hash)
                 .await
@@ -147,7 +147,7 @@ where
         let store = self.store.clone();
         let tx = self.tx.clone();
 
-        spawn(async move {
+        spawn!(async move {
             let amount = amount.min(MAX_HEADERS_AMOUNT_RESPONSE);
             let mut responses = vec![];
 
@@ -179,7 +179,7 @@ where
         {
             let tx = self.tx.clone();
 
-            spawn(async move {
+            spawn!(async move {
                 let _ = tx.send(response).await;
             });
         }

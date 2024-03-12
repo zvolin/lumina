@@ -239,7 +239,7 @@ impl P2p {
 
         let mut worker = Worker::new(args, cmd_rx, header_sub_tx, peer_tracker)?;
 
-        spawn(async move {
+        spawn!(async move {
             worker.run().await;
         });
 
@@ -835,7 +835,7 @@ where
 
     #[instrument(level = "trace", skip_all)]
     fn on_get_shwap_cid(&mut self, cid: Cid, respond_to: OneshotResultSender<Vec<u8>, P2pError>) {
-        trace!("Requesting CID {cid} from bitswap");
+        info!("Requesting CID {cid} from bitswap");
         let query_id = self.swarm.behaviour_mut().bitswap.get(&cid);
         self.bitswap_queries.insert(query_id, respond_to);
     }

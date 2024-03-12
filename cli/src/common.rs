@@ -43,7 +43,7 @@ pub async fn run() -> Result<()> {
         CliArgs::parse()
     };
 
-    let _guard = init_tracing();
+    // let _guard = init_tracing();
 
     match args {
         CliArgs::Node(args) => native::run(args).await,
