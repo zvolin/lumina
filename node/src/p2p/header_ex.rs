@@ -262,7 +262,9 @@ where
     ) -> Poll<ToSwarm<Self::ToSwarm, THandlerInEvent<Self>>> {
         loop {
             if let Poll::Ready(ev) = self.req_resp.poll(cx) {
+                warn!("req resp event: {ev:?}");
                 if let Some(ev) = self.on_to_swarm(ev) {
+                    warn!("req resp to swarm event: {ev:?}");
                     return Poll::Ready(ev);
                 }
 
@@ -270,13 +272,16 @@ where
             }
 
             if self.client_handler.poll(cx).is_ready() {
+                warn!("req resp client poll ready");
                 continue;
             }
 
             if self.server_handler.poll(cx, &mut self.req_resp).is_ready() {
+                warn!("req resp server poll ready");
                 continue;
             }
 
+            warn!("req resp poll pending");
             return Poll::Pending;
         }
     }
@@ -351,6 +356,7 @@ impl Codec for HeaderCodec {
     where
         T: AsyncRead + Unpin + Send,
     {
+        warn!("req resp read request");
         let data = read_up_to(io, REQUEST_SIZE_LIMIT, REQUEST_TIME_LIMIT).await?;
 
         if data.len() >= REQUEST_SIZE_LIMIT {
@@ -374,6 +380,7 @@ impl Codec for HeaderCodec {
     where
         T: AsyncRead + Unpin + Send,
     {
+        warn!("req resp read response");
         let data = read_up_to(io, RESPONSE_SIZE_LIMIT, RESPONSE_TIME_LIMIT).await?;
 
         if data.len() >= RESPONSE_SIZE_LIMIT {
@@ -411,6 +418,7 @@ impl Codec for HeaderCodec {
     where
         T: AsyncWrite + Unpin + Send,
     {
+        warn!("req resp write request");
         let mut buf = Vec::with_capacity(REQUEST_SIZE_LIMIT);
 
         let _ = req.encode_length_delimited(&mut buf);
@@ -431,6 +439,7 @@ impl Codec for HeaderCodec {
     where
         T: AsyncWrite + Unpin + Send,
     {
+        warn!("req resp write response");
         let mut buf = Vec::with_capacity(RESPONSE_SIZE_LIMIT);
 
         for resp in resps {

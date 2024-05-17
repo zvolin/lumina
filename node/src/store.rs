@@ -18,6 +18,7 @@ pub use in_memory_store::InMemoryStore;
 pub use indexed_db_store::IndexedDbStore;
 #[cfg(not(target_arch = "wasm32"))]
 pub use redb_store::RedbStore;
+use tracing::debug;
 
 mod in_memory_store;
 #[cfg(target_arch = "wasm32")]

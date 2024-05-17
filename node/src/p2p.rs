@@ -389,6 +389,7 @@ impl P2p {
     /// Request the headers following the one given with the `header-ex` protocol.
     ///
     /// First header from the requested range will be verified against the provided one, then each subsequent is verified against the previous one.
+    #[instrument(skip_all)]
     pub async fn get_verified_headers_range(
         &self,
         from: &ExtendedHeader,
@@ -400,9 +401,11 @@ impl P2p {
 
         let mut session = HeaderSession::new(height, amount, self.cmd_tx.clone())?;
         let headers = session.run().await?;
+        debug!("Session finished");
 
         from.verify_adjacent_range(&headers)
             .map_err(|_| HeaderExError::InvalidResponse)?;
+        debug!("Headers verified");
 
         Ok(headers)
     }

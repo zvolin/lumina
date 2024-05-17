@@ -19,7 +19,7 @@ use libp2p::swarm::NetworkInfo;
 use libp2p::{Multiaddr, PeerId};
 use tokio::select;
 use tokio_util::sync::CancellationToken;
-use tracing::warn;
+use tracing::{debug, instrument, warn};
 
 use crate::daser::{Daser, DaserArgs, DaserError};
 use crate::executor::spawn;
@@ -260,13 +260,21 @@ where
     }
 
     /// Get current header syncing info.
+    #[instrument(skip_all)]
     pub async fn syncer_info(&self) -> Result<SyncingInfo> {
-        Ok(self.syncer.info().await?)
+        debug!("called");
+        let res = Ok(self.syncer.info().await?);
+        debug!("finished");
+        res
     }
 
     /// Get the latest header announced in the network.
+    #[instrument(skip_all)]
     pub fn get_network_head_header(&self) -> Option<ExtendedHeader> {
-        self.p2p.header_sub_watcher().borrow().clone()
+        debug!("called");
+        let res = self.p2p.header_sub_watcher().borrow().clone();
+        debug!("finished");
+        res
     }
 
     /// Get the latest locally synced header.

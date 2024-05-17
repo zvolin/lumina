@@ -1,7 +1,7 @@
 use celestia_proto::p2p::pb::HeaderRequest;
 use celestia_types::ExtendedHeader;
 use tokio::sync::{mpsc, oneshot};
-use tracing::debug;
+use tracing::{debug, instrument};
 
 use crate::executor::spawn;
 use crate::p2p::header_ex::utils::HeaderRequestExt;
@@ -52,6 +52,8 @@ impl HeaderSession {
 
         while self.ongoing > 0 {
             let (height, requested_amount, res) = self.recv_response().await;
+            debug!("Received new result for next sub-batch: height = {height}, amount = {requested_amount}");
+            debug!("Ongoing: {}", self.ongoing);
 
             match res {
                 Ok(headers) => {
@@ -76,6 +78,7 @@ impl HeaderSession {
                 Err(e) => return Err(e),
             }
         }
+        debug!("Received all sub-batch responses");
 
         let mut headers = responses.into_iter().flatten().collect::<Vec<_>>();
 
@@ -93,8 +96,10 @@ impl HeaderSession {
         (height, requested_amount, res)
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn send_next_request(&mut self) -> Result<()> {
         if self.remaining_amount == 0 {
+            debug!("Nothing to do");
             return Ok(());
         }
 
@@ -107,6 +112,7 @@ impl HeaderSession {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     pub(crate) async fn send_request(&mut self, height: u64, amount: u64) -> Result<()> {
         debug!("Fetching batch {} until {}", height, height + amount - 1);
 
@@ -128,6 +134,7 @@ impl HeaderSession {
                 Ok(result) => result,
                 Err(_) => Err(P2pError::WorkerDied),
             };
+            debug!("Sending response: {result:?}");
             let _ = response_tx.send((height, amount, result)).await;
         });
 
@@ -191,6 +198,26 @@ mod tests {
                 p2p_mock.expect_header_request_for_height_cmd().await;
             assert_eq!(height, 1 + 64 * i);
             assert_eq!(amount, 64);
+            let start = (height - 1) as usize;
+            let end = start + amount as usize - 8;
+            respond_to.send(Ok(headers[start..end].to_vec())).unwrap();
+        }
+
+        for _ in 0..8 {
+            let (height, amount, respond_to) =
+                p2p_mock.expect_header_request_for_height_cmd().await;
+            assert_eq!(amount, 8);
+            let start = (height - 1) as usize;
+            let end = start + amount as usize;
+            respond_to
+                .send(Err(P2pError::HeaderEx(HeaderExError::InvalidResponse)))
+                .unwrap();
+        }
+
+        for _ in 0..8 {
+            let (height, amount, respond_to) =
+                p2p_mock.expect_header_request_for_height_cmd().await;
+            assert_eq!(amount, 8);
             let start = (height - 1) as usize;
             let end = start + amount as usize;
             respond_to.send(Ok(headers[start..end].to_vec())).unwrap();

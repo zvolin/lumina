@@ -490,9 +490,12 @@ where
 
         // Headers are already verified by `get_verified_headers_range`,
         // so `append_unchecked` is used for optimization.
+        debug!("Inserting {} headers to the store", headers.len());
+        let now = instant::Instant::now();
         if let Err(e) = self.store.append_unchecked(headers).await {
             warn!("Failed to store batch {start} until {end}: {e}");
         }
+        debug!("Store append finished: {}ms", now.elapsed().as_millis());
     }
 }
 
