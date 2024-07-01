@@ -30,6 +30,7 @@
 //!    At that point Daser cleans the queue and moves back to step 1.
 
 use std::collections::{HashSet, VecDeque};
+use std::ops::RangeInclusive;
 use std::sync::Arc;
 
 use celestia_tendermint::Time;
@@ -47,7 +48,7 @@ use crate::events::{EventPublisher, NodeEvent};
 use crate::executor::spawn;
 use crate::p2p::shwap::sample_cid;
 use crate::p2p::{P2p, P2pError};
-use crate::store::{HeaderRanges, SamplingStatus, Store, StoreError};
+use crate::store::{SamplingStatus, Store, StoreError};
 
 const MAX_SAMPLES_NEEDED: usize = 16;
 
@@ -135,7 +136,7 @@ where
     max_samples_needed: usize,
     sampling_futs: FuturesUnordered<BoxFuture<'static, Result<(u64, bool)>>>,
     queue: VecDeque<SamplingArgs>,
-    prev_stored_blocks: HeaderRanges,
+    prev_stored_blocks: RangeInclusive<u64>,
     prev_head: Option<u64>,
 }
 
@@ -159,7 +160,7 @@ where
             max_samples_needed: MAX_SAMPLES_NEEDED,
             sampling_futs: FuturesUnordered::new(),
             queue: VecDeque::new(),
-            prev_stored_blocks: HeaderRanges::default(),
+            prev_stored_blocks: 1..=0,
             prev_head: None,
         })
     }
@@ -275,7 +276,7 @@ where
 
         self.sampling_futs.clear();
         self.queue.clear();
-        self.prev_stored_blocks = HeaderRanges::default();
+        self.prev_stored_blocks = 1..=0;
         self.prev_head = None;
 
         Ok(())
@@ -381,39 +382,41 @@ where
     /// limitation that's coming from bitswap: only way for us to know if sampling
     /// failed is via timeout.
     async fn populate_queue(&mut self) -> Result<()> {
+        warn!("populate queeue: {:?}", self.prev_stored_blocks);
         let stored_blocks = self.store.get_stored_header_ranges().await?;
-        let first_check = self.prev_stored_blocks.is_empty();
+        let stored_blocks = stored_blocks.into_inner().last().cloned().unwrap_or(1..=0);
+        let max_headers = self.prev_stored_blocks.clone().count() + 2;
 
-        'outer: for block_range in stored_blocks.clone().into_inner().into_iter().rev() {
-            for height in block_range.rev() {
-                if self.prev_stored_blocks.contains(height) {
-                    // Skip blocks that were checked before
-                    continue;
-                }
-
-                // Optimization: We check if the block was accepted only if this is
-                // the first time we check the store (i.e. prev_stored_blocks is empty),
-                // otherwise we can safely assume that block needs sampling.
-                if first_check && is_block_accepted(&*self.store, height).await {
-                    // Skip already sampled blocks
-                    continue;
-                }
-
-                let Ok(header) = self.store.get_by_height(height).await else {
-                    // We reached the tail of the known heights
-                    break 'outer;
-                };
-
-                if !in_sampling_window(header.time()) {
-                    // We've reached the tail of the sampling window
-                    break 'outer;
-                }
-
-                queue_sampling(&mut self.queue, &header);
+        for height in stored_blocks.clone().rev().take(max_headers) {
+            if self.prev_stored_blocks.contains(&height) {
+                // Skip blocks that were checked before
+                continue;
             }
+
+            if is_block_accepted(&*self.store, height).await {
+                // Skip already sampled blocks
+                continue;
+            }
+
+            let Ok(header) = self.store.get_by_height(height).await else {
+                // We reached the tail of the known heights
+                break;
+            };
+
+            if !in_sampling_window(header.time()) {
+                // We've reached the tail of the sampling window
+                break;
+            }
+
+            queue_sampling(&mut self.queue, &header);
         }
 
-        self.prev_stored_blocks = stored_blocks;
+        if stored_blocks.clone().count() < max_headers {
+            self.prev_stored_blocks = stored_blocks;
+        } else {
+            self.prev_stored_blocks =
+                *stored_blocks.end() - max_headers as u64..=*stored_blocks.end();
+        }
 
         Ok(())
     }
