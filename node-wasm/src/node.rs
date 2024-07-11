@@ -102,11 +102,11 @@ impl NodeDriver {
         // 1. Chrome Android does not support SharedWorkers at all
         // 2. On desktop Chrome, restarting Lumina's worker causes all network connections to fail.
         let default_worker_type = if is_chrome().unwrap_or(false) {
-            NodeWorkerKind::Dedicated
+            NodeWorkerKind::Dummy
         } else if is_safari().unwrap_or(false) {
             NodeWorkerKind::Dummy
         } else {
-            NodeWorkerKind::Shared
+            NodeWorkerKind::Dummy
         };
 
         let worker = AnyWorker::new(
