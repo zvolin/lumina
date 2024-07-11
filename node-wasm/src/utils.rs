@@ -48,7 +48,7 @@ pub fn setup_logging() {
         .with_ansi(false)
         .with_timer(UtcTime::rfc_3339()) // std::time is not available in browsers
         .with_writer(MakeConsoleWriter) // write events to the console
-        .with_filter(LevelFilter::INFO); // TODO: allow customizing the log level
+        .with_filter(LevelFilter::DEBUG); // TODO: allow customizing the log level
     let perf_layer = performance_layer().with_details_from_fields(Pretty::default());
 
     tracing_subscriber::registry()
@@ -186,6 +186,7 @@ pub(crate) async fn request_storage_persistence() -> Result<(), Error> {
 }
 
 const CHROME_USER_AGENT_DETECTION_STR: &str = "Chrome/";
+const SAFARI_USER_AGENT_DETECTION_STR: &str = "Safari/";
 
 // Currently, there's an issue with SharedWorkers on Chrome where restarting Lumina's worker
 // causes all network connections to fail. Until that's resolved detect chrome and apply
@@ -195,6 +196,13 @@ pub(crate) fn is_chrome() -> Result<bool, Error> {
         .user_agent()
         .context("could not get UserAgent from Navigator")
         .map(|user_agent| user_agent.contains(CHROME_USER_AGENT_DETECTION_STR))
+}
+
+pub(crate) fn is_safari() -> Result<bool, Error> {
+    get_navigator()?
+        .user_agent()
+        .context("could not get UserAgent from Navigator")
+        .map(|user_agent| user_agent.contains(SAFARI_USER_AGENT_DETECTION_STR))
 }
 
 pub(crate) fn get_navigator() -> Result<Navigator, Error> {

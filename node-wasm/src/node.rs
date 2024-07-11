@@ -15,8 +15,8 @@ use lumina_node::store::IndexedDbStore;
 
 use crate::error::{Context, Result};
 use crate::utils::{
-    is_chrome, js_value_from_display, request_storage_persistence, resolve_dnsaddr_multiaddress,
-    Network,
+    is_chrome, is_safari, js_value_from_display, request_storage_persistence,
+    resolve_dnsaddr_multiaddress, Network,
 };
 use crate::worker::commands::{CheckableResponseExt, NodeCommand, SingleHeaderQuery};
 use crate::worker::{AnyWorker, WorkerClient};
@@ -54,6 +54,8 @@ pub enum NodeWorkerKind {
     ///
     /// [`Worker`]: https://developer.mozilla.org/en-US/docs/Web/API/Worker
     Dedicated,
+    /// Dummy worker
+    Dummy,
 }
 
 #[wasm_bindgen(js_class = NodeClient)]
@@ -92,15 +94,17 @@ impl NodeDriver {
         worker_script_url: &str,
         worker_type: Option<NodeWorkerKind>,
     ) -> Result<NodeDriver> {
-        if let Err(e) = request_storage_persistence().await {
-            error!("Error requesting storage persistence: {e}");
-        }
+        // if let Err(e) = request_storage_persistence().await {
+        //     error!("Error requesting storage persistence: {e}");
+        // }
 
         // For chrome we default to running in a dedicated Worker because:
         // 1. Chrome Android does not support SharedWorkers at all
         // 2. On desktop Chrome, restarting Lumina's worker causes all network connections to fail.
         let default_worker_type = if is_chrome().unwrap_or(false) {
             NodeWorkerKind::Dedicated
+        } else if is_safari().unwrap_or(false) {
+            NodeWorkerKind::Dummy
         } else {
             NodeWorkerKind::Shared
         };

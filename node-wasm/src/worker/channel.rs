@@ -6,15 +6,15 @@ use tracing::{debug, error, info, warn};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{
-    DedicatedWorkerGlobalScope, MessageEvent, MessagePort, SharedWorker, Worker, WorkerOptions,
-    WorkerType,
+    DedicatedWorkerGlobalScope, MessageChannel, MessageEvent, MessagePort, SharedWorker, Worker,
+    WorkerOptions, WorkerType,
 };
 
 use crate::error::{Context, Error, Result};
 use crate::node::NodeWorkerKind;
 use crate::utils::WorkerSelf;
 use crate::worker::commands::{NodeCommand, WorkerResponse};
-use crate::worker::WorkerError;
+use crate::worker::{run_worker, WorkerError};
 
 type WireMessage = Result<WorkerResponse, WorkerError>;
 type WorkerClientConnection = (MessagePort, Closure<dyn Fn(MessageEvent)>);
@@ -80,6 +80,9 @@ impl WorkerClient {
                 .port()
                 .post_message(&command_value)
                 .context("could not send command to worker"),
+            AnyWorker::DummyWorker(message_port) => message_port
+                .post_message(&command_value)
+                .context("could not send command to worker"),
         }
     }
 }
@@ -87,6 +90,7 @@ impl WorkerClient {
 pub(crate) enum AnyWorker {
     DedicatedWorker(Worker),
     SharedWorker(SharedWorker),
+    DummyWorker(MessagePort),
 }
 
 impl From<SharedWorker> for AnyWorker {
@@ -120,6 +124,19 @@ impl AnyWorker {
                 AnyWorker::DedicatedWorker(
                     Worker::new_with_options(url, &opts).context("could not create Worker")?,
                 )
+            }
+            NodeWorkerKind::Dummy => {
+                info!("Starting dummy worker");
+                let message_channel =
+                    MessageChannel::new().context("Failed to create message channel")?;
+                let worker_port = message_channel.port2();
+
+                spawn_local(async move {
+                    if let Err(e) = run_worker(vec![], Some(worker_port)).await {
+                        error!("running dummy worker failed: {e}");
+                    }
+                });
+                AnyWorker::DummyWorker(message_channel.port1())
             }
         })
     }
@@ -155,6 +172,9 @@ impl AnyWorker {
             AnyWorker::DedicatedWorker(worker) => {
                 worker.set_onmessage(Some(onmessage.as_ref().unchecked_ref()))
             }
+            AnyWorker::DummyWorker(message_port) => {
+                message_port.set_onmessage(Some(onmessage.as_ref().unchecked_ref()))
+            }
         }
         onmessage
     }
@@ -169,6 +189,9 @@ impl AnyWorker {
             }
             AnyWorker::DedicatedWorker(worker) => {
                 worker.set_onerror(Some(onerror.as_ref().unchecked_ref()))
+            }
+            AnyWorker::DummyWorker(message_port) => {
+                message_port.set_onmessageerror(Some(onerror.as_ref().unchecked_ref()))
             }
         }
 
@@ -324,6 +347,41 @@ impl MessageServer for DedicatedWorkerMessageServer {
     fn send_response(&self, client: ClientId, message: WireMessage) {
         if let Err(e) = self
             .worker
+            .post_message(&serialize_response_message(&message))
+        {
+            error!("could not post response message to client {client}: {e:?}");
+        }
+    }
+}
+
+pub(super) struct DummyWorkerMessageServer {
+    // same onmessage callback is used throughtout entire Worker lifetime.
+    // Keep a reference to make sure it doesn't get dropped.
+    _onmessage: Closure<dyn Fn(MessageEvent)>,
+    // global scope we use to send messages
+    message_port: MessagePort,
+}
+
+impl DummyWorkerMessageServer {
+    pub fn new(command_channel: mpsc::Sender<WorkerMessage>, message_port: MessagePort) -> Self {
+        let onmessage = get_client_message_callback(command_channel, ClientId(0));
+        message_port.set_onmessage(Some(onmessage.as_ref().unchecked_ref()));
+
+        Self {
+            _onmessage: onmessage,
+            message_port,
+        }
+    }
+}
+
+impl MessageServer for DummyWorkerMessageServer {
+    fn add(&mut self, _port: MessagePort) {
+        error!("DummyWorkerMessageServer::add called, should not happen");
+    }
+
+    fn send_response(&self, client: ClientId, message: WireMessage) {
+        if let Err(e) = self
+            .message_port
             .post_message(&serialize_response_message(&message))
         {
             error!("could not post response message to client {client}: {e:?}");

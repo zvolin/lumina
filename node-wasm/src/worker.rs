@@ -10,7 +10,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
-use web_sys::{BroadcastChannel, MessageEvent, SharedWorker};
+use web_sys::{BroadcastChannel, MessageEvent, MessagePort, SharedWorker, Worker};
 
 use lumina_node::node::Node;
 use lumina_node::store::{IndexedDbStore, SamplingMetadata, Store};
@@ -20,7 +20,8 @@ use crate::error::{Context, Error, Result};
 use crate::node::WasmNodeConfig;
 use crate::utils::{get_crypto, WorkerSelf};
 use crate::worker::channel::{
-    DedicatedWorkerMessageServer, MessageServer, SharedWorkerMessageServer, WorkerMessage,
+    DedicatedWorkerMessageServer, DummyWorkerMessageServer, MessageServer,
+    SharedWorkerMessageServer, WorkerMessage,
 };
 use crate::worker::commands::{NodeCommand, SingleHeaderQuery, WorkerResponse};
 use crate::wrapper::libp2p::NetworkInfoSnapshot;
@@ -236,15 +237,21 @@ impl NodeWorker {
 }
 
 #[wasm_bindgen]
-pub async fn run_worker(queued_events: Vec<MessageEvent>) -> Result<()> {
+pub async fn run_worker(
+    queued_events: Vec<MessageEvent>,
+    listen_port: Option<MessagePort>,
+) -> Result<()> {
     info!("Entered run_worker");
     let (tx, mut rx) = mpsc::channel(WORKER_MESSAGE_SERVER_INCOMING_QUEUE_LENGTH);
-    let events_channel_name = format!("NodeEventChannel-{}", get_crypto()?.random_uuid());
+    let events_channel_name = "NodeEventChannel-123456".to_owned();
 
     let mut message_server: Box<dyn MessageServer> = if SharedWorker::is_worker_type() {
         Box::new(SharedWorkerMessageServer::new(tx.clone(), queued_events))
-    } else {
+    } else if Worker::is_worker_type() {
         Box::new(DedicatedWorkerMessageServer::new(tx.clone(), queued_events).await)
+    } else {
+        let listen_port = listen_port.expect("Invalid worker context");
+        Box::new(DummyWorkerMessageServer::new(tx.clone(), listen_port))
     };
 
     info!("Entering worker message loop");
