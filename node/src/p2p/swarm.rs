@@ -60,7 +60,8 @@ mod imp {
 #[cfg(target_arch = "wasm32")]
 mod imp {
     use super::*;
-    use libp2p::{core::upgrade::Version, noise, webtransport_websys, yamux};
+    use libp2p::Transport;
+    use libp2p::{core::upgrade::Version, noise, websocket_websys, webtransport_websys, yamux};
 
     pub(crate) fn new_swarm<B>(keypair: Keypair, behaviour: B) -> Result<Swarm<B>, P2pError>
     where
@@ -73,21 +74,21 @@ mod imp {
                 webtransport_websys::Transport::new(config)
             })
             .expect("webtransport_websys::Transport is infallible")
-            // .with_other_transport(|local_keypair| {
-            //     websocket_websys::Transport::default()
-            //         .upgrade(Version::V1)
-            //         .authenticate(
-            //             noise::Config::new(local_keypair).expect("failed to apply auth layer"),
-            //         )
-            //         .multiplex(yamux::Config::default())
-            // })
-            // .expect("websocket_websys::Transport is infallible")
             .with_other_transport(|local_keypair| {
-                libp2p_webrtc_websys::Transport::new(libp2p_webrtc_websys::Config::new(
-                    local_keypair,
-                ))
+                websocket_websys::Transport::default()
+                    .upgrade(Version::V1)
+                    .authenticate(
+                        noise::Config::new(local_keypair).expect("failed to apply auth layer"),
+                    )
+                    .multiplex(yamux::Config::default())
             })
-            .expect("Failed to set up webrtc")
+            .expect("websocket_websys::Transport is infallible")
+            // .with_other_transport(|local_keypair| {
+            //     libp2p_webrtc_websys::Transport::new(libp2p_webrtc_websys::Config::new(
+            //         local_keypair,
+            //     ))
+            // })
+            // .expect("Failed to set up webrtc")
             .with_behaviour(|_| behaviour)
             .expect("Moving behaviour doesn't fail")
             .with_swarm_config(|config| {
