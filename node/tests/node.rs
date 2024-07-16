@@ -260,7 +260,7 @@ fn spawn_befp_announcer(connect_to: Multiaddr) -> mpsc::Sender<BadEncodingFraudP
     spawn(async move {
         loop {
             select! {
-                _ = announcer.select_next_some() => (),
+                _ = announcer.poll_next_some() => (),
                 Some(proof) = rx.recv() => {
                     let proof = proof.encode_vec().unwrap();
                     announcer.behaviour_mut().gossipsub.publish(topic.hash(), proof).unwrap();

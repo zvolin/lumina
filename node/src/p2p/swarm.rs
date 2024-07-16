@@ -82,13 +82,7 @@ mod imp {
                     )
                     .multiplex(yamux::Config::default())
             })
-            .expect("websocket_websys::Transport is infallible")
-            // .with_other_transport(|local_keypair| {
-            //     libp2p_webrtc_websys::Transport::new(libp2p_webrtc_websys::Config::new(
-            //         local_keypair,
-            //     ))
-            // })
-            // .expect("Failed to set up webrtc")
+            .expect("todo: infallible?")
             .with_behaviour(|_| behaviour)
             .expect("Moving behaviour doesn't fail")
             .with_swarm_config(|config| {
