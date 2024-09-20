@@ -56,7 +56,7 @@ jobs:
           cd node-wasm/js
 
           # Update lumina-node version
-          if ! $(npm version $node_wasm_version); then
+          if ! npm version $node_wasm_version >/dev/null; then
             echo "Version up to date"
             exit
           fi
@@ -93,9 +93,11 @@ jobs:
             -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             --data "$(echo "$query" | tr -d '\n')")
 
-          if $(echo "$result" | jq -e '.errors | length != 0'); then
+          if echo "$result" | jq -e '.errors | length != 0' >/dev/null; then
             echo "Commit failed: $(echo "$result" | jq '.errors')" >&2
             exit 1
+          else
+            echo "Version updated: ${node_wasm_version}"
           fi
 
       - name: Release to npm
