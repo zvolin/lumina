@@ -52,12 +52,16 @@ jobs:
           git fetch
           git checkout "$pr_branch_name"
 
-          # Update the version of lumina-node-wasm dependency
           node_wasm_version="$(cargo pkgid --manifest-path=node-wasm/Cargo.toml | cut -d@ -f 2)"
           cd node-wasm/js
-          npm pkg set "dependencies[lumina-node-wasm]=$node_wasm_version"
+
           # Update lumina-node version
-          npm version $node_wasm_version
+          if ! $(npm version $node_wasm_version); then
+            echo "Version up to date"
+            exit
+          fi
+          # Update the version of lumina-node-wasm dependency
+          npm pkg set "dependencies[lumina-node-wasm]=$node_wasm_version"
 
           # push a commit to release-plz's pr
           # prepare graphql query
@@ -90,7 +94,8 @@ jobs:
             --data "$(echo "$query" | tr -d '\n')")
 
           if $(echo "$result" | jq -e '.errors | length != 0'); then
-            echo "Commit failed: $(echo "$result" | jq '.errors')"
+            echo "Commit failed: $(echo "$result" | jq '.errors')" >&2
+            exit 1
           fi
 
       - name: Release to npm
