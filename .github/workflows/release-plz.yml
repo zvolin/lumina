@@ -44,8 +44,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}
         run: |
-          set +x
-          pr_branch_name=${{ steps.release-plz.outputs.pr.head_branch }}
+          set -x
+          pr_branch_name="${{ fromJSON(steps.release-plz.outputs.pr).head_branch }}"
 
           # switch to the branch created by release-plz
           git fetch
