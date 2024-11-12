@@ -12,8 +12,8 @@ use lumina_node::network;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use tracing::{info, warn};
-use tracing_subscriber::filter::LevelFilter;
+use tracing::{info, warn, Level};
+use tracing_subscriber::filter::{filter_fn, LevelFilter};
 use tracing_subscriber::fmt::time::UtcTime;
 use tracing_subscriber::prelude::*;
 use tracing_web::MakeConsoleWriter;
@@ -50,7 +50,23 @@ pub fn setup_logging() {
         .with_ansi(false)
         .with_timer(UtcTime::rfc_3339()) // std::time is not available in browsers
         .with_writer(MakeConsoleWriter) // write events to the console
-        .with_filter(LevelFilter::INFO); // TODO: allow customizing the log level
+        .with_filter(filter_fn(|metadata| {
+            let debug = metadata.target().starts_with("lumina_node")
+                || metadata.target().starts_with("libp2p")
+                || metadata.target().starts_with("beetswap")
+                || metadata.target().starts_with("blockstore");
+            let debug_disabled = metadata.target().starts_with("lumina_node::p2p::header_ex")
+                || metadata.target().starts_with("libp2p_gossipsub")
+                || metadata
+                    .target()
+                    .starts_with("libp2p_core::transport::choice")
+                || metadata
+                    .target()
+                    .starts_with("lumina_node::p2p::header_session");
+            let debug = (debug && !debug_disabled) && metadata.level() <= &Level::DEBUG;
+
+            debug || metadata.level() <= &Level::INFO
+        })); // TODO: allow customizing the log level
 
     tracing_subscriber::registry().with(fmt_layer).init();
 }

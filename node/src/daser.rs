@@ -76,6 +76,7 @@ pub(crate) struct Daser {
     join_handle: JoinHandle,
 }
 
+#[allow(unused)]
 /// Arguments used to configure the [`Daser`].
 pub(crate) struct DaserArgs<S>
 where
@@ -93,23 +94,26 @@ where
 }
 
 impl Daser {
+    #[allow(unused)]
     /// Create and start the [`Daser`].
     pub(crate) fn start<S>(args: DaserArgs<S>) -> Result<Self>
     where
         S: Store + 'static,
     {
         let cancellation_token = CancellationToken::new();
-        let event_pub = args.event_pub.clone();
-        let mut worker = Worker::new(args, cancellation_token.child_token())?;
+        // let event_pub = args.event_pub.clone();
+        // let mut worker = Worker::new(args, cancellation_token.child_token())?;
 
+        let token = cancellation_token.child_token();
         let join_handle = spawn(async move {
-            if let Err(e) = worker.run().await {
-                error!("Daser stopped because of a fatal error: {e}");
+            token.cancelled().await
+            // if let Err(e) = worker.run().await {
+            //     error!("Daser stopped because of a fatal error: {e}");
 
-                event_pub.send(NodeEvent::FatalDaserError {
-                    error: e.to_string(),
-                });
-            }
+            //     event_pub.send(NodeEvent::FatalDaserError {
+            //         error: e.to_string(),
+            //     });
+            // }
         });
 
         Ok(Daser {
@@ -136,6 +140,7 @@ impl Drop for Daser {
     }
 }
 
+#[allow(unused)]
 struct Worker<S>
 where
     S: Store + 'static,
@@ -153,6 +158,7 @@ where
     sampling_window: Duration,
 }
 
+#[allow(unused)]
 impl<S> Worker<S>
 where
     S: Store,

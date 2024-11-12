@@ -1,0 +1,361 @@
+diff --git a/misc/multistream-select/src/listener_select.rs b/misc/multistream-select/src/listener_select.rs
+index b4236310..7646db78 100644
+--- a/misc/multistream-select/src/listener_select.rs
++++ b/misc/multistream-select/src/listener_select.rs
+@@ -122,6 +122,7 @@ where
+         loop {
+             match mem::replace(this.state, State::Done) {
+                 State::RecvHeader { mut io } => {
++                    tracing::info!("recv header");
+                     match io.poll_next_unpin(cx) {
+                         Poll::Ready(Some(Ok(Message::Header(HeaderLine::V1)))) => {
+                             *this.state = State::SendHeader { io }
+@@ -142,6 +143,7 @@ where
+                 }
+ 
+                 State::SendHeader { mut io } => {
++                    tracing::info!("send header");
+                     match Pin::new(&mut io).poll_ready(cx) {
+                         Poll::Pending => {
+                             *this.state = State::SendHeader { io };
+@@ -160,6 +162,7 @@ where
+                 }
+ 
+                 State::RecvMessage { mut io } => {
++                    tracing::info!("recv message");
+                     let msg = match Pin::new(&mut io).poll_next(cx) {
+                         Poll::Ready(Some(Ok(msg))) => msg,
+                         // Treat EOF error as [`NegotiationError::Failed`], not as
+@@ -249,6 +252,7 @@ where
+                     message,
+                     protocol,
+                 } => {
++                    tracing::info!("send message");
+                     match Pin::new(&mut io).poll_ready(cx) {
+                         Poll::Pending => {
+                             *this.state = State::SendMessage {
+@@ -276,6 +280,7 @@ where
+                 }
+ 
+                 State::Flush { mut io, protocol } => {
++                    tracing::info!("flushing message");
+                     match Pin::new(&mut io).poll_flush(cx) {
+                         Poll::Pending => {
+                             *this.state = State::Flush { io, protocol };
+@@ -296,7 +301,9 @@ where
+                                 None => *this.state = State::RecvMessage { io },
+                             }
+                         }
+-                        Poll::Ready(Err(err)) => return Poll::Ready(Err(From::from(err))),
++                        Poll::Ready(Err(err)) => {
++                            return Poll::Ready(Err(From::from(err)));
++                        }
+                     }
+                 }
+ 
+diff --git a/transports/webtransport-websys/src/bindings.rs b/transports/webtransport-websys/src/bindings.rs
+index a8a1469f..7fca8558 100644
+--- a/transports/webtransport-websys/src/bindings.rs
++++ b/transports/webtransport-websys/src/bindings.rs
+@@ -139,3 +139,248 @@ impl WebTransportHash {
+         self
+     }
+ }
++
++#[wasm_bindgen]
++extern "C" {
++    # [wasm_bindgen (extends = :: js_sys :: Object , js_name = DOMException , typescript_type = "DOMException")]
++    #[derive(Debug, Clone, PartialEq, Eq)]
++    #[doc = "The `DomException` class."]
++    #[doc = ""]
++    #[doc = "[MDN Documentation](https://developer.mozilla.org/en-US/docs/Web/API/DOMException)"]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub type DomException;
++    # [wasm_bindgen (structural , method , getter , js_class = "DOMException" , js_name = name)]
++    #[doc = "Getter for the `name` field of this object."]
++    #[doc = ""]
++    #[doc = "[MDN Documentation](https://developer.mozilla.org/en-US/docs/Web/API/DOMException/name)"]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub fn name(this: &DomException) -> String;
++    # [wasm_bindgen (structural , method , getter , js_class = "DOMException" , js_name = message)]
++    #[doc = "Getter for the `message` field of this object."]
++    #[doc = ""]
++    #[doc = "[MDN Documentation](https://developer.mozilla.org/en-US/docs/Web/API/DOMException/message)"]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub fn message(this: &DomException) -> String;
++    # [wasm_bindgen (structural , method , getter , js_class = "DOMException" , js_name = code)]
++    #[doc = "Getter for the `code` field of this object."]
++    #[doc = ""]
++    #[doc = "[MDN Documentation](https://developer.mozilla.org/en-US/docs/Web/API/DOMException/code)"]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub fn code(this: &DomException) -> u16;
++    # [wasm_bindgen (structural , method , getter , js_class = "DOMException" , js_name = result)]
++    #[doc = "Getter for the `result` field of this object."]
++    #[doc = ""]
++    #[doc = "[MDN Documentation](https://developer.mozilla.org/en-US/docs/Web/API/DOMException/result)"]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub fn result(this: &DomException) -> u32;
++    # [wasm_bindgen (structural , method , getter , js_class = "DOMException" , js_name = filename)]
++    #[doc = "Getter for the `filename` field of this object."]
++    #[doc = ""]
++    #[doc = "[MDN Documentation](https://developer.mozilla.org/en-US/docs/Web/API/DOMException/filename)"]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub fn filename(this: &DomException) -> String;
++    # [wasm_bindgen (structural , method , getter , js_class = "DOMException" , js_name = lineNumber)]
++    #[doc = "Getter for the `lineNumber` field of this object."]
++    #[doc = ""]
++    #[doc = "[MDN Documentation](https://developer.mozilla.org/en-US/docs/Web/API/DOMException/lineNumber)"]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub fn line_number(this: &DomException) -> u32;
++    # [wasm_bindgen (structural , method , getter , js_class = "DOMException" , js_name = columnNumber)]
++    #[doc = "Getter for the `columnNumber` field of this object."]
++    #[doc = ""]
++    #[doc = "[MDN Documentation](https://developer.mozilla.org/en-US/docs/Web/API/DOMException/columnNumber)"]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub fn column_number(this: &DomException) -> u32;
++    # [wasm_bindgen (structural , method , getter , js_class = "DOMException" , js_name = data)]
++    #[doc = "Getter for the `data` field of this object."]
++    #[doc = ""]
++    #[doc = "[MDN Documentation](https://developer.mozilla.org/en-US/docs/Web/API/DOMException/data)"]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub fn data(this: &DomException) -> Option<::js_sys::Object>;
++    # [wasm_bindgen (structural , method , getter , js_class = "DOMException" , js_name = stack)]
++    #[doc = "Getter for the `stack` field of this object."]
++    #[doc = ""]
++    #[doc = "[MDN Documentation](https://developer.mozilla.org/en-US/docs/Web/API/DOMException/stack)"]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub fn stack(this: &DomException) -> String;
++    #[wasm_bindgen(catch, constructor, js_class = "DOMException")]
++    #[doc = "The `new DomException(..)` constructor, creating a new instance of `DomException`."]
++    #[doc = ""]
++    #[doc = "[MDN Documentation](https://developer.mozilla.org/en-US/docs/Web/API/DOMException/DOMException)"]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub fn new() -> Result<DomException, JsValue>;
++    #[wasm_bindgen(catch, constructor, js_class = "DOMException")]
++    #[doc = "The `new DomException(..)` constructor, creating a new instance of `DomException`."]
++    #[doc = ""]
++    #[doc = "[MDN Documentation](https://developer.mozilla.org/en-US/docs/Web/API/DOMException/DOMException)"]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub fn new_with_message(message: &str) -> Result<DomException, JsValue>;
++    #[wasm_bindgen(catch, constructor, js_class = "DOMException")]
++    #[doc = "The `new DomException(..)` constructor, creating a new instance of `DomException`."]
++    #[doc = ""]
++    #[doc = "[MDN Documentation](https://developer.mozilla.org/en-US/docs/Web/API/DOMException/DOMException)"]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub fn new_with_message_and_name(message: &str, name: &str) -> Result<DomException, JsValue>;
++}
++impl DomException {
++    #[doc = "The `DOMException.INDEX_SIZE_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const INDEX_SIZE_ERR: u16 = 1u64 as u16;
++    #[doc = "The `DOMException.DOMSTRING_SIZE_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const DOMSTRING_SIZE_ERR: u16 = 2u64 as u16;
++    #[doc = "The `DOMException.HIERARCHY_REQUEST_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const HIERARCHY_REQUEST_ERR: u16 = 3u64 as u16;
++    #[doc = "The `DOMException.WRONG_DOCUMENT_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const WRONG_DOCUMENT_ERR: u16 = 4u64 as u16;
++    #[doc = "The `DOMException.INVALID_CHARACTER_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const INVALID_CHARACTER_ERR: u16 = 5u64 as u16;
++    #[doc = "The `DOMException.NO_DATA_ALLOWED_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const NO_DATA_ALLOWED_ERR: u16 = 6u64 as u16;
++    #[doc = "The `DOMException.NO_MODIFICATION_ALLOWED_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const NO_MODIFICATION_ALLOWED_ERR: u16 = 7u64 as u16;
++    #[doc = "The `DOMException.NOT_FOUND_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const NOT_FOUND_ERR: u16 = 8u64 as u16;
++    #[doc = "The `DOMException.NOT_SUPPORTED_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const NOT_SUPPORTED_ERR: u16 = 9u64 as u16;
++    #[doc = "The `DOMException.INUSE_ATTRIBUTE_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const INUSE_ATTRIBUTE_ERR: u16 = 10u64 as u16;
++    #[doc = "The `DOMException.INVALID_STATE_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const INVALID_STATE_ERR: u16 = 11u64 as u16;
++    #[doc = "The `DOMException.SYNTAX_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const SYNTAX_ERR: u16 = 12u64 as u16;
++    #[doc = "The `DOMException.INVALID_MODIFICATION_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const INVALID_MODIFICATION_ERR: u16 = 13u64 as u16;
++    #[doc = "The `DOMException.NAMESPACE_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const NAMESPACE_ERR: u16 = 14u64 as u16;
++    #[doc = "The `DOMException.INVALID_ACCESS_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const INVALID_ACCESS_ERR: u16 = 15u64 as u16;
++    #[doc = "The `DOMException.VALIDATION_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const VALIDATION_ERR: u16 = 16u64 as u16;
++    #[doc = "The `DOMException.TYPE_MISMATCH_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const TYPE_MISMATCH_ERR: u16 = 17u64 as u16;
++    #[doc = "The `DOMException.SECURITY_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const SECURITY_ERR: u16 = 18u64 as u16;
++    #[doc = "The `DOMException.NETWORK_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const NETWORK_ERR: u16 = 19u64 as u16;
++    #[doc = "The `DOMException.ABORT_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const ABORT_ERR: u16 = 20u64 as u16;
++    #[doc = "The `DOMException.URL_MISMATCH_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const URL_MISMATCH_ERR: u16 = 21u64 as u16;
++    #[doc = "The `DOMException.QUOTA_EXCEEDED_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const QUOTA_EXCEEDED_ERR: u16 = 22u64 as u16;
++    #[doc = "The `DOMException.TIMEOUT_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const TIMEOUT_ERR: u16 = 23u64 as u16;
++    #[doc = "The `DOMException.INVALID_NODE_TYPE_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const INVALID_NODE_TYPE_ERR: u16 = 24u64 as u16;
++    #[doc = "The `DOMException.DATA_CLONE_ERR` const."]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `DomException`*"]
++    pub const DATA_CLONE_ERR: u16 = 25u64 as u16;
++}
++
++#[wasm_bindgen]
++extern "C" {
++    # [wasm_bindgen (extends = DomException , extends = :: js_sys :: Object , js_name = WebTransportError , typescript_type = "WebTransportError")]
++    #[derive(Debug, Clone, PartialEq, Eq)]
++    #[doc = "The `WebTransportError` class."]
++    #[doc = ""]
++    #[doc = "[MDN Documentation](https://developer.mozilla.org/en-US/docs/Web/API/WebTransportError)"]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `WebTransportError`*"]
++    #[doc = ""]
++    #[doc = "*This API is unstable and requires `--cfg=web_sys_unstable_apis` to be activated, as"]
++    #[doc = "[described in the `wasm-bindgen` guide](https://rustwasm.github.io/docs/wasm-bindgen/web-sys/unstable-apis.html)*"]
++    pub type WebTransportError;
++    # [wasm_bindgen (structural , method , getter , js_class = "WebTransportError" , js_name = source)]
++    #[doc = "Getter for the `source` field of this object."]
++    #[doc = ""]
++    #[doc = "[MDN Documentation](https://developer.mozilla.org/en-US/docs/Web/API/WebTransportError/source)"]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `WebTransportError`, `WebTransportErrorSource`*"]
++    #[doc = ""]
++    #[doc = "*This API is unstable and requires `--cfg=web_sys_unstable_apis` to be activated, as"]
++    #[doc = "[described in the `wasm-bindgen` guide](https://rustwasm.github.io/docs/wasm-bindgen/web-sys/unstable-apis.html)*"]
++    pub fn source(this: &WebTransportError) -> WebTransportErrorSource;
++    # [wasm_bindgen (structural , method , getter , js_class = "WebTransportError" , js_name = streamErrorCode)]
++    #[doc = "Getter for the `streamErrorCode` field of this object."]
++    #[doc = ""]
++    #[doc = "[MDN Documentation](https://developer.mozilla.org/en-US/docs/Web/API/WebTransportError/streamErrorCode)"]
++    #[doc = ""]
++    #[doc = "*This API requires the following crate features to be activated: `WebTransportError`*"]
++    #[doc = ""]
++    #[doc = "*This API is unstable and requires `--cfg=web_sys_unstable_apis` to be activated, as"]
++    #[doc = "[described in the `wasm-bindgen` guide](https://rustwasm.github.io/docs/wasm-bindgen/web-sys/unstable-apis.html)*"]
++    pub fn stream_error_code(this: &WebTransportError) -> Option<u8>;
++}
++#[wasm_bindgen]
++#[doc = "The `WebTransportErrorSource` enum."]
++#[doc = ""]
++#[doc = "*This API requires the following crate features to be activated: `WebTransportErrorSource`*"]
++#[doc = ""]
++#[doc = "*This API is unstable and requires `--cfg=web_sys_unstable_apis` to be activated, as"]
++#[doc = "[described in the `wasm-bindgen` guide](https://rustwasm.github.io/docs/wasm-bindgen/web-sys/unstable-apis.html)*"]
++#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++pub enum WebTransportErrorSource {
++    Stream = "stream",
++    Session = "session",
++}
+diff --git a/transports/webtransport-websys/src/connection.rs b/transports/webtransport-websys/src/connection.rs
+index 956a6628..e496de3c 100644
+--- a/transports/webtransport-websys/src/connection.rs
++++ b/transports/webtransport-websys/src/connection.rs
+@@ -139,6 +139,7 @@ impl ConnectionInner {
+     }
+ 
+     /// Polls for incoming stream from `incoming_bidirectional_streams` reader.
++    #[tracing::instrument(skip_all)]
+     fn poll_incoming_bidirectional_streams(
+         &mut self,
+         cx: &mut Context,
+@@ -156,6 +157,7 @@ impl ConnectionInner {
+ 
+         let bidi_stream = to_js_type::<WebTransportBidirectionalStream>(val)?;
+         let stream = Stream::new(bidi_stream)?;
++        tracing::warn!("new incoming stream");
+ 
+         Poll::Ready(Ok(stream))
+     }
+diff --git a/transports/webtransport-websys/src/stream.rs b/transports/webtransport-websys/src/stream.rs
+index ba4238ac..69bac5a6 100644
+--- a/transports/webtransport-websys/src/stream.rs
++++ b/transports/webtransport-websys/src/stream.rs
+@@ -5,9 +5,10 @@ use std::io;
+ use std::pin::Pin;
+ use std::task::ready;
+ use std::task::{Context, Poll};
++use wasm_bindgen::JsCast;
+ use web_sys::{ReadableStreamDefaultReader, WritableStreamDefaultWriter};
+ 
+-use crate::bindings::WebTransportBidirectionalStream;
++use crate::bindings::{WebTransportBidirectionalStream, WebTransportError};
+ use crate::fused_js_promise::FusedJsPromise;
+ use crate::utils::{detach_promise, parse_reader_response, to_io_error, to_js_type};
+ use crate::Error;
+@@ -125,7 +126,15 @@ impl StreamInner {
+                 .writer_ready_promise
+                 .maybe_init(|| self.writer.ready())
+                 .poll_unpin(cx))
+-            .map_err(to_io_error)?;
++            .map_err(|e| {
++                let webtransport_err: &WebTransportError = e.dyn_ref().unwrap();
++                tracing::error!(
++                    "source: {:?}, code: {:?}",
++                    webtransport_err.source(),
++                    webtransport_err.stream_error_code()
++                );
++                to_io_error(e)
++            })?;
+         }
+ 
+         Poll::Ready(Ok(()))

@@ -23,7 +23,7 @@ use tracing::warn;
 
 use crate::daser::{Daser, DaserArgs};
 use crate::events::{EventChannel, EventSubscriber, NodeEvent};
-use crate::executor::{spawn_cancellable, JoinHandle};
+use crate::executor::{spawn_cancellable, Interval, JoinHandle};
 use crate::p2p::{P2p, P2pArgs};
 use crate::pruner::{Pruner, PrunerArgs, DEFAULT_PRUNING_INTERVAL};
 use crate::store::{SamplingMetadata, Store, StoreError};
@@ -165,25 +165,40 @@ where
 
         // spawn the task that will stop the services when the fraud is detected
         let network_compromised_task = spawn_cancellable(tasks_cancellation_token.child_token(), {
-            let network_compromised_token = p2p.get_network_compromised_token().await?;
-            let syncer = syncer.clone();
-            let daser = daser.clone();
-            let pruner = pruner.clone();
-            let event_pub = event_channel.publisher();
-
+            let p2p = p2p.clone();
             async move {
-                network_compromised_token.triggered().await;
-
-                // Network compromised! Stop workers.
-                syncer.stop();
-                daser.stop();
-                pruner.stop();
-
-                event_pub.send(NodeEvent::NetworkCompromised);
-                // This is a very important message and we want to log it even
-                // if user consumes our events.
-                warn!("{}", NodeEvent::NetworkCompromised);
+                let mut sample_interval = Interval::new(Duration::from_secs(2)).await;
+                loop {
+                    sample_interval.tick().await;
+                    let Some(head) = p2p.get_network_head().await.unwrap() else {
+                        continue;
+                    };
+                    let head = head.height().value();
+                    let sample = p2p
+                        .get_sample(0, 0, head, Some(Duration::from_secs(2)))
+                        .await;
+                    warn!("Received sample at {head}: {}", sample.is_ok());
+                }
             }
+            // let network_compromised_token = p2p.get_network_compromised_token().await?;
+            // let syncer = syncer.clone();
+            // let daser = daser.clone();
+            // let pruner = pruner.clone();
+            // let event_pub = event_channel.publisher();
+
+            // async move {
+            //     network_compromised_token.triggered().await;
+
+            //     // Network compromised! Stop workers.
+            //     syncer.stop();
+            //     daser.stop();
+            //     pruner.stop();
+
+            //     event_pub.send(NodeEvent::NetworkCompromised);
+            //     // This is a very important message and we want to log it even
+            //     // if user consumes our events.
+            //     warn!("{}", NodeEvent::NetworkCompromised);
+            // }
         });
 
         let node = Node {
