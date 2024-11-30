@@ -149,7 +149,7 @@ jobs:
     # needed for the buildx in order to access gha cache
     # https://github.com/docker/bake-action/issues/36#issuecomment-1103961612
     - name: Expose github actions runtime
-      uses: crazy-max/ghaction-github-runtime@v1
+      uses: crazy-max/ghaction-github-runtime@v3
 
     - name: Build the docker-compose stack
       run: |
