@@ -9,7 +9,7 @@ jobs:
   clippy:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - name: Install Protoc
       uses: arduino/setup-protoc@v2
       with:
@@ -53,7 +53,7 @@ jobs:
   fmt:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - name: Run fmt
       run: cargo fmt -- --check
 
@@ -63,7 +63,7 @@ jobs:
     env:
       WASM_BINDGEN_TEST_TIMEOUT: 120
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
 
     - name: Install Protoc
       uses: arduino/setup-protoc@v2
@@ -107,7 +107,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
 
     - name: Set up cargo cache
       uses: actions/cache@v3
@@ -200,7 +200,7 @@ jobs:
     name: unused dependencies
     steps:
     - name: Checkout sources
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Install Protoc
       uses: arduino/setup-protoc@v2
