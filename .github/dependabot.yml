@@ -1,0 +1,30 @@
+# `dependabot.yml` file with
+# customized schedule for version updates
+
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/"    
+    # Updates interval
+    schedule:
+      interval: "weekly"
+    # Patterns for ignoring updates
+    ignore:
+      # For all packages, ignore all patch updates
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
+    # With minor updates and dev-deps, open the the PRs in groups
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+      # Separate dev-dependencies for 'definitely not breaking' stuff
+      development-dependencies:
+        dependency-type: "development"
+
+  # Check github actions updates once a month
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
