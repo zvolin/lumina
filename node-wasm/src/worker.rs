@@ -58,7 +58,6 @@ enum NodeKind {
 }
 
 struct NodeWorkerInstance {
-    //node: Node<InMemoryBlockstore, InMemoryStore>,
     node: NodeKind,
     events_channel_name: String,
 }
