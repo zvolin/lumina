@@ -11,16 +11,16 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::BroadcastChannel;
 
-use lumina_node::blockstore::IndexedDbBlockstore;
+use lumina_node::blockstore::{InMemoryBlockstore, IndexedDbBlockstore};
 use lumina_node::events::{EventSubscriber, NodeEventInfo};
-use lumina_node::node::{Node, SyncingInfo};
-use lumina_node::store::{IndexedDbStore, SamplingMetadata};
+use lumina_node::node::{Node, PeerTrackerInfo, SyncingInfo};
+use lumina_node::store::{InMemoryStore, IndexedDbStore, SamplingMetadata};
 
 use crate::client::WasmNodeConfig;
 use crate::commands::{NodeCommand, SingleHeaderQuery, WorkerResponse};
 use crate::error::{Context, Error, Result};
 use crate::ports::{ClientMessage, WorkerServer};
-use crate::utils::random_id;
+use crate::utils::{bounds, random_id};
 use crate::wrapper::libp2p::NetworkInfoSnapshot;
 
 #[derive(Debug, Serialize, Deserialize, Error)]
@@ -52,8 +52,14 @@ pub struct NodeWorker {
     _control_channel: mpsc::UnboundedSender<ClientMessage>,
 }
 
+enum NodeKind {
+    Persistant(Node<IndexedDbBlockstore, IndexedDbStore>),
+    InMemory(Node<InMemoryBlockstore, InMemoryStore>),
+}
+
 struct NodeWorkerInstance {
-    node: Node<IndexedDbBlockstore, IndexedDbStore>,
+    //node: Node<InMemoryBlockstore, InMemoryStore>,
+    node: NodeKind,
     events_channel_name: String,
 }
 
@@ -123,7 +129,17 @@ impl NodeWorker {
 
 impl NodeWorkerInstance {
     async fn new(events_channel_name: &str, config: WasmNodeConfig) -> Result<Self> {
-        let (node, events_sub) = config.into_node_builder().await?.start_subscribed().await?;
+        let (node, events_sub) = if config.use_persistent_memory {
+            let (node, events_sub) = config
+                .into_node_builder_persistent()
+                .await?
+                .start_subscribed()
+                .await?;
+            (NodeKind::Persistant(node), events_sub)
+        } else {
+            let (node, events_sub) = config.into_node_builder().await?.start_subscribed().await?;
+            (NodeKind::InMemory(node), events_sub)
+        };
 
         let events_channel = BroadcastChannel::new(events_channel_name)
             .context("Failed to allocate BroadcastChannel")?;
@@ -137,70 +153,116 @@ impl NodeWorkerInstance {
     }
 
     async fn stop(self) {
-        self.node.stop().await;
+        match self.node {
+            NodeKind::Persistant(node) => node.stop().await,
+            NodeKind::InMemory(node) => node.stop().await,
+        }
     }
 
     async fn get_syncer_info(&mut self) -> Result<SyncingInfo> {
-        Ok(self.node.syncer_info().await?)
+        let info = match self.node {
+            NodeKind::Persistant(ref node) => node.syncer_info().await,
+            NodeKind::InMemory(ref node) => node.syncer_info().await,
+        }?;
+        Ok(info)
     }
 
     async fn get_network_info(&mut self) -> Result<NetworkInfoSnapshot> {
-        Ok(self.node.network_info().await?.into())
+        let info = match self.node {
+            NodeKind::Persistant(ref node) => node.network_info().await,
+            NodeKind::InMemory(ref node) => node.network_info().await,
+        }?;
+        Ok(info.into())
     }
 
     async fn set_peer_trust(&mut self, peer_id: PeerId, is_trusted: bool) -> Result<()> {
-        Ok(self.node.set_peer_trust(peer_id, is_trusted).await?)
+        match self.node {
+            NodeKind::Persistant(ref node) => node.set_peer_trust(peer_id, is_trusted).await?,
+            NodeKind::InMemory(ref node) => node.set_peer_trust(peer_id, is_trusted).await?,
+        }
+        Ok(())
     }
 
     async fn get_connected_peers(&mut self) -> Result<Vec<String>> {
-        Ok(self
-            .node
-            .connected_peers()
-            .await?
-            .iter()
-            .map(|id| id.to_string())
-            .collect())
+        let peers = match self.node {
+            NodeKind::Persistant(ref node) => node.connected_peers().await?,
+            NodeKind::InMemory(ref node) => node.connected_peers().await?,
+        };
+
+        Ok(peers.into_iter().map(|id| id.to_string()).collect())
     }
 
     async fn get_listeners(&mut self) -> Result<Vec<Multiaddr>> {
-        Ok(self.node.listeners().await?)
+        let listeners = match self.node {
+            NodeKind::Persistant(ref node) => node.listeners().await?,
+            NodeKind::InMemory(ref node) => node.listeners().await?,
+        };
+        Ok(listeners)
     }
 
     async fn wait_connected(&mut self, trusted: bool) -> Result<()> {
         if trusted {
-            self.node.wait_connected_trusted().await?;
+            match self.node {
+                NodeKind::Persistant(ref node) => node.wait_connected_trusted().await?,
+                NodeKind::InMemory(ref node) => node.wait_connected_trusted().await?,
+            }
         } else {
-            self.node.wait_connected().await?;
+            match self.node {
+                NodeKind::Persistant(ref node) => node.wait_connected().await?,
+                NodeKind::InMemory(ref node) => node.wait_connected().await?,
+            }
         }
         Ok(())
     }
 
     async fn request_header(&mut self, query: SingleHeaderQuery) -> Result<JsValue> {
         let header = match query {
-            SingleHeaderQuery::Head => self.node.request_head_header().await,
-            SingleHeaderQuery::ByHash(hash) => self.node.request_header_by_hash(&hash).await,
-            SingleHeaderQuery::ByHeight(height) => self.node.request_header_by_height(height).await,
-        }?;
+            SingleHeaderQuery::Head => match self.node {
+                NodeKind::Persistant(ref node) => node.request_head_header().await?,
+                NodeKind::InMemory(ref node) => node.request_head_header().await?,
+            },
+            SingleHeaderQuery::ByHash(hash) => match self.node {
+                NodeKind::Persistant(ref node) => node.request_header_by_hash(&hash).await?,
+                NodeKind::InMemory(ref node) => node.request_header_by_hash(&hash).await?,
+            },
+            SingleHeaderQuery::ByHeight(height) => match self.node {
+                NodeKind::Persistant(ref node) => node.request_header_by_height(height).await?,
+                NodeKind::InMemory(ref node) => node.request_header_by_height(height).await?,
+            },
+        };
         to_value(&header).context("could not serialise requested header")
     }
 
     async fn get_header(&mut self, query: SingleHeaderQuery) -> Result<JsValue> {
         let header = match query {
-            SingleHeaderQuery::Head => self.node.get_local_head_header().await,
-            SingleHeaderQuery::ByHash(hash) => self.node.get_header_by_hash(&hash).await,
-            SingleHeaderQuery::ByHeight(height) => self.node.get_header_by_height(height).await,
-        }?;
+            SingleHeaderQuery::Head => match self.node {
+                NodeKind::Persistant(ref node) => node.get_local_head_header().await?,
+                NodeKind::InMemory(ref node) => node.get_local_head_header().await?,
+            },
+            SingleHeaderQuery::ByHash(hash) => match self.node {
+                NodeKind::Persistant(ref node) => node.get_header_by_hash(&hash).await?,
+                NodeKind::InMemory(ref node) => node.get_header_by_hash(&hash).await?,
+            },
+            SingleHeaderQuery::ByHeight(height) => match self.node {
+                NodeKind::Persistant(ref node) => node.get_header_by_height(height).await?,
+                NodeKind::InMemory(ref node) => node.get_header_by_height(height).await?,
+            },
+        };
         to_value(&header).context("could not serialise requested header")
     }
 
     async fn get_verified_headers(&mut self, from: JsValue, amount: u64) -> Result<Array> {
-        let verified_headers = self
-            .node
-            .request_verified_headers(
-                &from_value(from).context("could not deserialise verified header")?,
-                amount,
-            )
-            .await?;
+        let from_header = from_value(from).context("could not deserialise verified header")?;
+
+        let verified_headers = match self.node {
+            NodeKind::Persistant(ref node) => {
+                node.request_verified_headers(&from_header, amount).await?
+            }
+            NodeKind::InMemory(ref node) => {
+                node.request_verified_headers(&from_header, amount).await?
+            }
+        };
+
         verified_headers
             .iter()
             .map(|h| to_value(&h))
@@ -213,12 +275,17 @@ impl NodeWorkerInstance {
         start_height: Option<u64>,
         end_height: Option<u64>,
     ) -> Result<Array> {
-        let headers = match (start_height, end_height) {
-            (None, None) => self.node.get_headers(..).await,
-            (Some(start), None) => self.node.get_headers(start..).await,
-            (None, Some(end)) => self.node.get_headers(..=end).await,
-            (Some(start), Some(end)) => self.node.get_headers(start..=end).await,
-        }?;
+        let bounds = match (start_height, end_height) {
+            (None, None) => bounds(..),
+            (Some(start), None) => bounds(start..),
+            (None, Some(end)) => bounds(..=end),
+            (Some(start), Some(end)) => bounds(start..=end),
+        };
+
+        let headers = match self.node {
+            NodeKind::Persistant(ref node) => node.get_headers(bounds).await?,
+            NodeKind::InMemory(ref node) => node.get_headers(bounds).await?,
+        };
 
         headers
             .iter()
@@ -228,14 +295,37 @@ impl NodeWorkerInstance {
     }
 
     async fn get_last_seen_network_head(&mut self) -> Result<JsValue> {
-        match self.node.get_network_head_header().await? {
+        let header = match self.node {
+            NodeKind::Persistant(ref node) => node.get_network_head_header().await?,
+            NodeKind::InMemory(ref node) => node.get_network_head_header().await?,
+        };
+
+        match header {
             Some(header) => to_value(&header).context("could not serialise head header"),
             None => Ok(JsValue::UNDEFINED),
         }
     }
 
     async fn get_sampling_metadata(&mut self, height: u64) -> Result<Option<SamplingMetadata>> {
-        Ok(self.node.get_sampling_metadata(height).await?)
+        let metadata = match self.node {
+            NodeKind::Persistant(ref node) => node.get_sampling_metadata(height).await?,
+            NodeKind::InMemory(ref node) => node.get_sampling_metadata(height).await?,
+        };
+        Ok(metadata)
+    }
+
+    fn get_local_peeri_id(&mut self) -> String {
+        match self.node {
+            NodeKind::Persistant(ref node) => node.local_peer_id().to_string(),
+            NodeKind::InMemory(ref node) => node.local_peer_id().to_string(),
+        }
+    }
+
+    fn get_peer_tracker_info(&mut self) -> PeerTrackerInfo {
+        match self.node {
+            NodeKind::Persistant(ref node) => node.peer_tracker_info(),
+            NodeKind::InMemory(ref node) => node.peer_tracker_info(),
+        }
     }
 
     async fn process_command(&mut self, command: NodeCommand) -> WorkerResponse {
@@ -245,16 +335,13 @@ impl NodeWorkerInstance {
                 WorkerResponse::NodeStarted(Err(Error::new("Node already started")))
             }
             NodeCommand::StopNode => unreachable!("StopNode is handled in `run()`"),
-            NodeCommand::GetLocalPeerId => {
-                WorkerResponse::LocalPeerId(self.node.local_peer_id().to_string())
-            }
+            NodeCommand::GetLocalPeerId => WorkerResponse::LocalPeerId(self.get_local_peeri_id()),
             NodeCommand::GetEventsChannelName => {
                 WorkerResponse::EventsChannelName(self.events_channel_name.clone())
             }
             NodeCommand::GetSyncerInfo => WorkerResponse::SyncerInfo(self.get_syncer_info().await),
             NodeCommand::GetPeerTrackerInfo => {
-                let peer_tracker_info = self.node.peer_tracker_info();
-                WorkerResponse::PeerTrackerInfo(peer_tracker_info)
+                WorkerResponse::PeerTrackerInfo(self.get_peer_tracker_info())
             }
             NodeCommand::GetNetworkInfo => {
                 WorkerResponse::NetworkInfo(self.get_network_info().await)

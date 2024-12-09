@@ -2,6 +2,8 @@
 
 use crate::p2p::MAX_MH_SIZE;
 
+pub use blockstore::Blockstore;
+
 /// An [`InMemoryBlockstore`] with maximum multihash size used by lumina.
 ///
 /// [`InMemoryBlockstore`]: blockstore::InMemoryBlockstore

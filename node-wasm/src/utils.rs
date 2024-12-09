@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use std::fmt::{self, Debug};
 use std::future::Future;
 use std::net::{IpAddr, Ipv4Addr};
+use std::ops::{Bound, RangeBounds};
 
 use gloo_timers::future::TimeoutFuture;
 use js_sys::{Math, Promise};
@@ -379,4 +380,12 @@ pub(crate) async fn timeout<F: Future>(millis: u32, fut: F) -> Result<F::Output,
         _ = timeout => Err(()),
         res = fut => Ok(res),
     }
+}
+
+pub(crate) fn bounds<T, R>(range: R) -> (Bound<T>, Bound<T>)
+where
+    T: Clone,
+    R: RangeBounds<T>,
+{
+    (range.start_bound().cloned(), range.end_bound().cloned())
 }

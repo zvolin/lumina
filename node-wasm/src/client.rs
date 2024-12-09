@@ -9,10 +9,10 @@ use tracing::{debug, error};
 use wasm_bindgen::prelude::*;
 use web_sys::BroadcastChannel;
 
-use lumina_node::blockstore::IndexedDbBlockstore;
+use lumina_node::blockstore::{Blockstore, InMemoryBlockstore, IndexedDbBlockstore};
 use lumina_node::network;
 use lumina_node::node::NodeBuilder;
-use lumina_node::store::IndexedDbStore;
+use lumina_node::store::{InMemoryStore, IndexedDbStore, Store};
 
 use crate::commands::{CheckableResponseExt, NodeCommand, SingleHeaderQuery};
 use crate::error::{Context, Result};
@@ -36,6 +36,8 @@ pub struct WasmNodeConfig {
     /// Syncing window size, defines maximum age of headers considered for syncing and sampling.
     /// Headers older than syncing window by more than an hour are eligible for pruning.
     pub custom_syncing_window_secs: Option<u32>,
+
+    pub use_persistent_memory: bool,
 }
 
 /// `NodeClient` is responsible for steering [`NodeWorker`] by sending it commands and receiving
@@ -383,10 +385,18 @@ impl WasmNodeConfig {
             network,
             bootnodes,
             custom_syncing_window_secs: None,
+            use_persistent_memory: false,
         }
     }
 
     pub(crate) async fn into_node_builder(
+        self,
+    ) -> Result<NodeBuilder<InMemoryBlockstore, InMemoryStore>> {
+        let builder = NodeBuilder::new();
+        self.configure_node_builder(builder).await
+    }
+
+    pub(crate) async fn into_node_builder_persistent(
         self,
     ) -> Result<NodeBuilder<IndexedDbBlockstore, IndexedDbStore>> {
         let network = network::Network::from(self.network);
@@ -399,11 +409,22 @@ impl WasmNodeConfig {
             .await
             .context("Failed to open the blockstore")?;
 
-        let mut builder = NodeBuilder::new()
-            .store(store)
-            .blockstore(blockstore)
-            .network(network)
-            .sync_batch_size(128);
+        let builder = NodeBuilder::new().store(store).blockstore(blockstore);
+
+        self.configure_node_builder(builder).await
+    }
+
+    pub(crate) async fn configure_node_builder<B, S>(
+        self,
+        mut builder: NodeBuilder<B, S>,
+    ) -> Result<NodeBuilder<B, S>>
+    where
+        B: Blockstore,
+        S: Store,
+    {
+        let network = network::Network::from(self.network);
+
+        builder = builder.network(network).sync_batch_size(128);
 
         let mut bootnodes = Vec::with_capacity(self.bootnodes.len());
 
