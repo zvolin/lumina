@@ -160,17 +160,17 @@ impl NodeWorkerInstance {
 
     async fn get_syncer_info(&mut self) -> Result<SyncingInfo> {
         let info = match self.node {
-            NodeKind::Persistant(ref node) => node.syncer_info().await,
-            NodeKind::InMemory(ref node) => node.syncer_info().await,
-        }?;
+            NodeKind::Persistant(ref node) => node.syncer_info().await?,
+            NodeKind::InMemory(ref node) => node.syncer_info().await?,
+        };
         Ok(info)
     }
 
     async fn get_network_info(&mut self) -> Result<NetworkInfoSnapshot> {
         let info = match self.node {
-            NodeKind::Persistant(ref node) => node.network_info().await,
-            NodeKind::InMemory(ref node) => node.network_info().await,
-        }?;
+            NodeKind::Persistant(ref node) => node.network_info().await?,
+            NodeKind::InMemory(ref node) => node.network_info().await?,
+        };
         Ok(info.into())
     }
 
