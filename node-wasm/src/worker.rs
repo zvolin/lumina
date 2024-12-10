@@ -126,6 +126,21 @@ impl NodeWorker {
     }
 }
 
+macro_rules! node {
+    ($self:ident, $method:ident($($param:expr),*).await) => {
+        match $self.node {
+            NodeKind::Persistant(ref node) => node.$method($($param),*).await,
+            NodeKind::InMemory(ref node) => node.$method($($param),*).await,
+        }
+    };
+    ($self:ident, $method:ident($($param:expr,)*)) => {
+        match $self.node {
+            NodeKind::Persistant(ref node) => node.$method($($param),*),
+            NodeKind::InMemory(ref node) => node.$method($($param),*),
+        }
+    };
+}
+
 impl NodeWorkerInstance {
     async fn new(events_channel_name: &str, config: WasmNodeConfig) -> Result<Self> {
         let (node, events_sub) = if config.use_persistent_memory {
@@ -159,26 +174,17 @@ impl NodeWorkerInstance {
     }
 
     async fn get_syncer_info(&mut self) -> Result<SyncingInfo> {
-        let info = match self.node {
-            NodeKind::Persistant(ref node) => node.syncer_info().await?,
-            NodeKind::InMemory(ref node) => node.syncer_info().await?,
-        };
+        let info = node!(self, syncer_info().await)?;
         Ok(info)
     }
 
     async fn get_network_info(&mut self) -> Result<NetworkInfoSnapshot> {
-        let info = match self.node {
-            NodeKind::Persistant(ref node) => node.network_info().await?,
-            NodeKind::InMemory(ref node) => node.network_info().await?,
-        };
+        let info = node!(self, network_info().await)?;
         Ok(info.into())
     }
 
     async fn set_peer_trust(&mut self, peer_id: PeerId, is_trusted: bool) -> Result<()> {
-        match self.node {
-            NodeKind::Persistant(ref node) => node.set_peer_trust(peer_id, is_trusted).await?,
-            NodeKind::InMemory(ref node) => node.set_peer_trust(peer_id, is_trusted).await?,
-        }
+        node!(self, set_peer_trust(peer_id, is_trusted).await)?;
         Ok(())
     }
 
