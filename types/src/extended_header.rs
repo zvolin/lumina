@@ -484,7 +484,9 @@ impl ExtendedHeader {
     /// Commit metadata and signatures from validators committing the block.
     #[wasm_bindgen(getter, js_name = commit)]
     pub fn js_commit(&self) -> Result<JsValue, serde_wasm_bindgen::Error> {
-        to_value(&self.commit)
+        use tendermint_proto::v0_34::types::Commit as RawCommit;
+        let commit = custom_serde::SerdeCommit::from(RawCommit::from(self.commit.clone()));
+        to_value(&commit)
     }
 
     /// Information about the set of validators commiting the block.
@@ -519,8 +521,24 @@ impl ExtendedHeader {
     /// This function will also return an error if untrusted headers are not adjacent
     /// to each other.
     #[wasm_bindgen(js_name = verify_range)]
-    pub fn js_verify_range(&self, untrusted: Vec<ExtendedHeader>) -> Result<(), JsValue> {
-        Ok(self.verify_range(&untrusted)?)
+    pub fn js_verify_range(&self, untrusted: &ExtendedHeaderArray) -> Result<(), JsValue> {
+        let array: &js_sys::Array = untrusted.dyn_ref().unwrap();
+        let vec = array
+            .to_vec()
+            .into_iter()
+            .map(|hdr| {
+                let to_json = js_sys::Reflect::get(&hdr, &"toString".into())
+                    .unwrap()
+                    .dyn_into::<js_sys::Function>()
+                    .unwrap();
+                let hdr_json = js_sys::Reflect::apply(&to_json, &hdr, &js_sys::Array::new())
+                    .unwrap()
+                    .as_string()
+                    .unwrap();
+                serde_json::from_str(&hdr_json).unwrap()
+            })
+            .collect::<Vec<_>>();
+        Ok(self.verify_range(&vec)?)
     }
 
     /// Verify a chain of adjacent untrusted headers and make sure
@@ -534,6 +552,13 @@ impl ExtendedHeader {
     pub fn js_verify_adjacent_range(&self, untrusted: Vec<ExtendedHeader>) -> Result<(), JsValue> {
         Ok(self.verify_adjacent_range(&untrusted)?)
     }
+}
+
+#[cfg(all(feature = "wasm-bindgen", target_arch = "wasm32"))]
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(typescript_type = "ExtendedHeader[]")]
+    pub type ExtendedHeaderArray;
 }
 
 impl Protobuf<RawExtendedHeader> for ExtendedHeader {}

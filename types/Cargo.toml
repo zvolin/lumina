@@ -45,6 +45,8 @@ time = { version = "0.3.36", default-features = false }
 wasm-bindgen = { version = "0.2.95", optional = true }
 serde-wasm-bindgen = { version = "0.6.5", optional = true }
 js-sys = { version = "0.3.76", optional = true }
+serde_json = "*"
+tracing = "*"
 
 [dev-dependencies]
 ed25519-consensus = "2.1.0"

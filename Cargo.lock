@@ -850,6 +850,7 @@ dependencies = [
  "tendermint-proto",
  "thiserror",
  "time",
+ "tracing",
  "wasm-bindgen",
  "wasm-bindgen-test",
 ]

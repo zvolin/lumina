@@ -3,35 +3,35 @@ Error.stackTraceLimit = 99; // rust stack traces can get pretty big, increase th
 import { NodeConfig, spawnNode } from "lumina-node";
 
 async function showStats(node) {
-  if (!node || !await node.isRunning()) {
-    return;
-  }
-  const info = await node.syncerInfo();
-  document.getElementById("stored-ranges").innerText = info.stored_headers.map((range) => {
-    return `${range.start}..${range.end}`;
-  }).join(", ");
+  // if (!node || !await node.isRunning()) {
+  //   return;
+  // }
+  // const info = await node.syncerInfo();
+  // document.getElementById("stored-ranges").innerText = info.stored_headers.map((range) => {
+  //   return `${range.start}..${range.end}`;
+  // }).join(", ");
 
-  let peersUl = document.createElement('ul');
-  (await node.connectedPeers()).forEach(peer => {
-    var li = document.createElement("li");
-    li.innerText = peer;
-    li.classList.add("mono");
-    peersUl.appendChild(li);
-  });
+  // let peersUl = document.createElement('ul');
+  // (await node.connectedPeers()).forEach(peer => {
+  //   var li = document.createElement("li");
+  //   li.innerText = peer;
+  //   li.classList.add("mono");
+  //   peersUl.appendChild(li);
+  // });
 
-  document.getElementById("peers").replaceChildren(peersUl);
+  // document.getElementById("peers").replaceChildren(peersUl);
 
-  const networkHead = await node.getNetworkHeadHeader();
-  if (networkHead == null) {
-    return;
-  }
+  // const networkHead = await node.getNetworkHeadHeader();
+  // if (networkHead == null) {
+  //   return;
+  // }
 
-  const squareRows = networkHead.dah.row_roots().length;
-  const squareCols = networkHead.dah.column_roots().length;
+  // const squareRows = networkHead.dah.row_roots().length;
+  // const squareCols = networkHead.dah.column_roots().length;
 
-  document.getElementById("block-height").innerText = networkHead.header.height;
-  document.getElementById("block-hash").innerText = networkHead.commit.block_id.hash;
-  document.getElementById("block-data-square").innerText = `${squareRows}x${squareCols} shares`;
+  // document.getElementById("block-height").innerText = networkHead.header.height;
+  // document.getElementById("block-hash").innerText = networkHead.commit.block_id.hash;
+  // document.getElementById("block-data-square").innerText = `${squareRows}x${squareCols} shares`;
 }
 
 function logEvent(event) {
