@@ -1,7 +1,8 @@
 //! celestia-node rpc types and methods related to shares
 
 use std::future::Future;
-use std::marker::{Send, Sync};
+use std::marker::{PhantomData, Send, Sync};
+use std::ops::Deref;
 
 use celestia_types::consts::appconsts::AppVersion;
 use celestia_types::nmt::Namespace;
@@ -13,6 +14,87 @@ use jsonrpsee::proc_macros::rpc;
 use serde::{Deserialize, Serialize};
 
 use crate::custom_client_error;
+
+pub struct SquareSizeKnown;
+
+pub struct SquareSizeUnknown;
+
+#[repr(C)]
+pub struct BlockMetadata<SquareSizeInfo> {
+    height: u64,
+    app_version: u64,
+    square_width: Option<u16>,
+    _phantom: PhantomData<SquareSizeInfo>,
+}
+
+impl BlockMetadata<SquareSizeUnknown> {
+    pub fn height(&self) -> u64 {
+        self.height
+    }
+
+    pub fn app_version(&self) -> Result<AppVersion, Error> {
+        AppVersion::from_u64(self.app_version).ok_or_else(|| {
+            let e = format!("Invalid or unsupported AppVersion: {}", self.app_version);
+            Error::Custom(e)
+        })
+    }
+}
+
+impl BlockMetadata<SquareSizeKnown> {
+    pub fn square_width(&self) -> u16 {
+        self.square_width.expect("must be set")
+    }
+}
+
+impl Deref for BlockMetadata<SquareSizeKnown> {
+    type Target = BlockMetadata<SquareSizeUnknown>;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { std::mem::transmute(self) }
+    }
+}
+
+impl<T> From<T> for BlockMetadata<SquareSizeUnknown>
+where
+    T: Into<BlockMetadata<SquareSizeKnown>>,
+{
+    fn from(value: T) -> Self {
+        unsafe { std::mem::transmute(value.into()) }
+    }
+}
+
+impl From<(u64, AppVersion)> for BlockMetadata<SquareSizeUnknown> {
+    fn from(value: (u64, AppVersion)) -> Self {
+        Self {
+            height: value.0,
+            app_version: value.1 as u64,
+            square_width: None,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl From<(u64, AppVersion, u16)> for BlockMetadata<SquareSizeKnown> {
+    fn from(value: (u64, AppVersion, u16)) -> Self {
+        Self {
+            height: value.0,
+            app_version: value.1 as u64,
+            square_width: Some(value.2),
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl From<&ExtendedHeader> for BlockMetadata<SquareSizeKnown> {
+    fn from(value: &ExtendedHeader) -> Self {
+        Self {
+            height: value.height().value(),
+            app_version: value.header.version.app,
+            square_width: Some(value.dah.square_width()),
+            _phantom: PhantomData,
+        }
+    }
+}
 
 /// Response type for [`ShareClient::share_get_range`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -129,24 +211,20 @@ pub trait ShareClient: ClientT {
     /// GetEDS gets the full EDS identified by the given root.
     fn share_get_eds<'a, 'b, 'fut>(
         &'a self,
-        root: &'b ExtendedHeader,
+        root: impl Into<BlockMetadata<SquareSizeUnknown>>,
     ) -> impl Future<Output = Result<ExtendedDataSquare, Error>> + Send + 'fut
     where
         'a: 'fut,
         'b: 'fut,
         Self: Sized + Sync + 'fut,
     {
-        async move {
-            let app_version = root.header.version.app;
-            let app_version = AppVersion::from_u64(app_version).ok_or_else(|| {
-                let e = format!("Invalid or unsupported AppVersion: {app_version}");
-                Error::Custom(e)
-            })?;
+        let root = root.into();
 
-            let raw_eds = rpc::ShareClient::share_get_eds(self, root.height().value()).await?;
+        async move {
+            let raw_eds = rpc::ShareClient::share_get_eds(self, root.height()).await?;
 
             // Correct `Share` construction and validation is done inside `ExtendedDataSquare::from_raw`
-            ExtendedDataSquare::from_raw(raw_eds, app_version).map_err(custom_client_error)
+            ExtendedDataSquare::from_raw(raw_eds, root.app_version()?).map_err(custom_client_error)
         }
     }
 
@@ -287,7 +365,7 @@ pub trait ShareClient: ClientT {
     /// GetShare gets a Share by coordinates in EDS.
     fn share_get_share<'a, 'b, 'fut>(
         &'a self,
-        root: &'b ExtendedHeader,
+        root: impl Into<BlockMetadata<SquareSizeKnown>>,
         row: u64,
         col: u64,
     ) -> impl Future<Output = Result<Share, Error>> + Send + 'fut
@@ -296,18 +374,20 @@ pub trait ShareClient: ClientT {
         'b: 'fut,
         Self: Sized + Sync + 'fut,
     {
+        let root = root.into();
+
         async move {
-            let share =
-                rpc::ShareClient::share_get_share(self, root.height().value(), row, col).await?;
-            let share = if is_ods_square(row, col, root.dah.square_width()) {
+            let share = rpc::ShareClient::share_get_share(self, root.height(), row, col).await?;
+            let share = if is_ods_square(row, col, root.square_width()) {
                 Share::from_raw(&share.data)
             } else {
                 Share::parity(&share.data)
             }
             .map_err(custom_client_error)?;
 
-            let app = root.app_version().map_err(custom_client_error)?;
-            share.validate(app).map_err(custom_client_error)?;
+            share
+                .validate(root.app_version()?)
+                .map_err(custom_client_error)?;
 
             Ok(share)
         }
