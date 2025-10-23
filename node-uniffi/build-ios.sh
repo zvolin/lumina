@@ -4,6 +4,8 @@ set -euxo pipefail
 
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
+target_dir="$(realpath ../target)"
+
 # create swift bindings
 
 rm -rf ./bindings ./ios
@@ -15,7 +17,7 @@ cargo build \
   --lib \
   --bin uniffi-bindgen
 
-../target/debug/uniffi-bindgen \
+"$target_dir"/debug/uniffi-bindgen \
   generate \
   --library ../target/debug/liblumina_node_uniffi.dylib \
   --language swift \
@@ -41,8 +43,8 @@ cargo build \
   --target aarch64-apple-ios-sim
 
 xcodebuild -create-xcframework \
-  -library ../target/aarch64-apple-ios/release/liblumina_node_uniffi.a -headers ./bindings/Headers \
-  -library ../target/aarch64-apple-ios-sim/release/liblumina_node_uniffi.a -headers ./bindings/Headers \
+  -library "$target_dir"/aarch64-apple-ios/release/liblumina_node_uniffi.a -headers ./bindings/Headers \
+  -library "$target_dir"/aarch64-apple-ios-sim/release/liblumina_node_uniffi.a -headers ./bindings/Headers \
   -output "ios/lumina.xcframework"
 
 cp ./bindings/*.swift ./ios/

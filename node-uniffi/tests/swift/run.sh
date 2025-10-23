@@ -3,13 +3,14 @@ set -xeuo pipefail
 
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
-target_dir=../../..target
+target_dir="$(realpath ../../../target)"
 
 rm -rf "$target_dir"/swift-uniffi-bindings
 mkdir -p "$target_dir"/swift-uniffi-bindings
 
-cargo run \
-  --bin uniffi-bindgen generate \
+cargo build --lib --bin uniffi-bindgen
+
+"$target_dir"/debug/uniffi-bindgen \
   --library ../target/debug/liblumina_node_uniffi.a \
   --language swift --out-dir \
   ../target/swift-uniffi-bindings
