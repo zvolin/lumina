@@ -13,9 +13,7 @@ mkdir -p ./bindings
 mkdir -p ./ios
 mkdir -p ./bindings/Headers
 
-cargo build \
-  --lib \
-  --bin uniffi-bindgen
+cargo build --lib --bin uniffi-bindgen
 
 "$target_dir"/debug/uniffi-bindgen \
   generate \
