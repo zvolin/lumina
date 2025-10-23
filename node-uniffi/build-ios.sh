@@ -11,10 +11,11 @@ mkdir -p ./bindings
 mkdir -p ./ios
 mkdir -p ./bindings/Headers
 
-cargo run \
+cargo build \
   --lib \
-  --bin uniffi-bindgen \
-  -- \
+  --bin uniffi-bindgen
+
+../target/debug/uniffi-bindgen \
   generate \
   --library ../target/debug/liblumina_node_uniffi.dylib \
   --language swift \
