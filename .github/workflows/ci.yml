@@ -243,7 +243,7 @@ jobs:
           -scheme LuminaDemo \
           -destination "id=${SIM_UDID}" \
           CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-          clean build
+          clean build-for-testing
 
     - name: xcode sim test
       working-directory: examples/ios/LuminaDemo
@@ -258,7 +258,7 @@ jobs:
           -parallel-testing-enabled NO \
           -destination-timeout 360 \
           -skip-testing LuminaDemoTests/GrpcClientTest \
-          test
+          test-without-building
 
 
   build-android:

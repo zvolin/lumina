@@ -4,8 +4,6 @@ set -xeuo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
 cd ../../
-cargo build
-
 rm -rf ../target/swift-uniffi-bindings
 mkdir -p ../target/swift-uniffi-bindings
 
@@ -44,5 +42,5 @@ $SUDO docker run \
   --user "$user" \
   --volume "$PWD":/app \
   --workdir /app \
-  swift:6.0.3 \
+  swift:6 \
   swift test
