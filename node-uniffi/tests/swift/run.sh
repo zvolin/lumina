@@ -11,6 +11,7 @@ mkdir -p "$target_dir"/swift-uniffi-bindings
 cargo build --lib --bin uniffi-bindgen
 
 "$target_dir"/debug/uniffi-bindgen \
+  generate \
   --library ../target/debug/liblumina_node_uniffi.a \
   --language swift --out-dir \
   ../target/swift-uniffi-bindings

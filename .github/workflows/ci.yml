@@ -215,6 +215,7 @@ jobs:
 
     - name: create and boot simulator
       run: |
+        set +x
         xcrun simctl shutdown all || true
         xcrun simctl erase all || true
         xcrun simctl delete CI-iPhone || true
