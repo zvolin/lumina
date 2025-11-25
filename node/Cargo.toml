@@ -28,9 +28,11 @@ celestia-proto.workspace = true
 celestia-types.workspace = true
 lumina-utils = { workspace = true, features = ["executor", "token", "time"] }
 
+either = "*"
 libp2p = { workspace = true, features = [
   "autonat",
   "ping",
+  "floodsub",
   "gossipsub",
   "identify",
   "macros",

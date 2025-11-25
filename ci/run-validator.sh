@@ -207,7 +207,7 @@ main() {
     --api.enable \
     --grpc.enable \
     --force-no-bbr \
-    --delayed-precommit-timeout 500ms \
+    --delayed-precommit-timeout 1500ms \
     "${extra_flags[@]}"
 }
 

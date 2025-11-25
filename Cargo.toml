@@ -96,9 +96,9 @@ web-sys = "0.3.70"
 # beetswap = { path = "../beetswap" }
 # blockstore = { path = "../blockstore" }
 # nmt-rs = { path = "../nmt-rs" }
-# libp2p = { path = "../../rust-libp2p/libp2p" }
-# libp2p-core = { path = "../../rust-libp2p/core" }
-# libp2p-swarm = { path = "../../rust-libp2p/swarm" }
+# libp2p = { path = "../../../rust-libp2p/libp2p" }
+# libp2p-core = { path = "../../../rust-libp2p/core" }
+# libp2p-swarm = { path = "../../../rust-libp2p/swarm" }
 # wasm-bindgen = { path = "../wasm-bindgen" }
 
 # Uncomment this if you need debug symbols in release.
